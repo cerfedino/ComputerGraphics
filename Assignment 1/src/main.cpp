@@ -71,23 +71,33 @@ public:
     Sphere(float radius, glm::vec3 center, glm::vec3 color) : radius(radius), center(center){
 		this->color = color;
     }
+
 	/** Implementation of the intersection function*/
     Hit intersect(Ray ray){
-		
-		Hit hit;
-		hit.hit = false;
-		
-		/* -------------------------------------------------
-		 
-		Place for your code: ray-sphere intersection. Remember to set all the fields of the hit structure:
+        const float delta = glm::sqrt(
+                glm::pow(glm::length(center), 2)
+                -glm::pow(glm::dot(center, ray.direction),2)
+                );
+        float closest_t;
+        // No intersection
+        if(delta > radius) {
+            Hit hit;
+            hit.hit = false;
+            return hit;
+        } else if (delta < radius) {
+            float t1 = glm::dot(center, ray.direction) + glm::sqrt(glm::pow(radius,2)-glm::pow(delta,2));
+            float t2 = glm::dot(center, ray.direction) - glm::sqrt(glm::pow(radius,2)-glm::pow(delta,2));
+            closest_t = glm::min(t1,t2);
+        } else {
+            closest_t = glm::dot(center, ray.direction) + glm::sqrt(glm::pow(radius,2)-glm::pow(delta,2));
+        }
+        Hit hit;
+        hit.hit = true;
+        hit.distance = closest_t;
+        hit.intersection = ray.direction * closest_t;
+        hit.normal = glm::normalize(hit.intersection - center);
+        hit.object = this;
 
-		 hit.intersection =
-		 hit.normal =
-		 hit.distance =
-		 hit.object = this;
-		 
-		------------------------------------------------- */
-        
 		return hit;
     }
 };
@@ -100,7 +110,7 @@ vector<Object *> objects; ///< A list of all objects in the scene
  @param ray Ray that should be traced through the scene
  @return Color at the intersection point
  */
-glm::vec3 trace_ray(Ray ray){
+glm::vec3 trace_ray(Ray ray) {
 	
 	// hit structure representing the closest intersection
 	Hit closest_hit;
@@ -111,8 +121,9 @@ glm::vec3 trace_ray(Ray ray){
 	//Loop over all objects to find the closest intersection
 	for(int k = 0; k<objects.size(); k++){
 		Hit hit = objects[k]->intersect(ray);
-		if(hit.hit == true && hit.distance < closest_hit.distance)
-			closest_hit = hit;
+		if(hit.hit == true && hit.distance < closest_hit.distance) {
+            closest_hit = hit;
+        }
 	}
 	
 	glm::vec3 color;
@@ -127,15 +138,8 @@ glm::vec3 trace_ray(Ray ray){
  Function defining the scene
  */
 void sceneDefinition (){
-	// first sphere (Excercise 1)
-	objects.push_back(new Sphere(1.0, glm::vec3(-0,-2,8), glm::vec3(0.6, 0.9, 0.6)));
-	
-	/* -------------------------------------------------
-	 
-	Place for your code: additional sphere (Excercise 2)
-	 
-	------------------------------------------------- */
-
+    objects.push_back(new Sphere(1.0, glm::vec3(-0,-2,8), glm::vec3(0.6, 0.9, 0.6)));
+    objects.push_back(new Sphere(1.0, glm::vec3(1.0, -2.0, 8.0), glm::vec3(0.6, 0.6, 0.9)));
 }
 
 int main(int argc, const char * argv[]) {
@@ -149,16 +153,31 @@ int main(int argc, const char * argv[]) {
 	sceneDefinition(); // Let's define the scene
 	
 	Image image(width,height); // Create an image where we will store the result
-    
+
+	// Parametrizing with plane
+	const float s = (2*glm::tan(fov/2))/width;
+
+	const float X = (-width*s)/2;
+	const float Y = (height*s)/2;
+    const float Z = 1;
+
     /* -------------------------------------------------
 	 
 	Place for your code: Loop over pixels to form and traverse the rays through the scene
 	 
 	------------------------------------------------- */
-    
+
+    const glm::vec3 origin = glm::vec3(0,0,0);
+
     for(int i = 0; i < width ; i++)
-        for(int j = 0; j < height ; j++){
-            
+        for(int j = 0; j < height ; j++) {
+
+            float dx = X + (i*s) + (s/2);
+            float dy = Y - (j*s) - (s/2);
+            glm::vec3 direction = glm::normalize(glm::vec3(dx, dy, Z));
+
+            Ray ray(origin, direction);
+            image.setPixel(i, j, trace_ray(ray));
 			/*
 			 
 			Place for your code: ray definition for pixel (i,j), ray traversal
