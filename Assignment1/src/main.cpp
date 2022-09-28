@@ -96,7 +96,7 @@ public:
 			// float t2 = a + sqrt(radius*radius - D_squared);
 			
 			// We only get the smallest positive between the two points
-			closest_t = t1 >= 0 ? t1 : sqrt(radius*radius - D_squared);
+			closest_t = t1 >= 0 ? t1 : a + sqrt(radius*radius - D_squared);
 
 		// One intersection
 		} else {
