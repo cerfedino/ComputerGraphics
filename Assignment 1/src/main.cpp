@@ -110,7 +110,7 @@ public:
 	
 		hit.hit = true;
 		hit.distance = closest_t;
-		hit.intersection = ray.direction * closest_t;
+		hit.intersection = ray.origin + ray.direction * hit.distance;
 		hit.normal = glm::normalize(hit.intersection - center);
 		hit.object = this;
 
@@ -154,7 +154,7 @@ glm::vec3 trace_ray(Ray ray){
  */
 void sceneDefinition (){
 	// first sphere (Exercise 1)
-	objects.push_back(new Sphere(1.0, glm::vec3(-0,-2,8), glm::vec3(0.6, 0.9, 0.6)));
+	objects.push_back(new Sphere(1.0, glm::vec3(0.0, -2.0, 8.0), glm::vec3(0.6, 0.9, 0.6)));
 	
 	// second sphere (Exercise 4)
 	objects.push_back(new Sphere(1.0, glm::vec3(1.0, -2.0, 8.0), glm::vec3(0.6, 0.6, 0.9)));
@@ -176,7 +176,7 @@ int main(int argc, const char * argv[]) {
 	const float X = -(width * s) / 2; // X coordinate of the first pixel
 	const float Y = (height * s) / 2; // Y coordinate of the first pixel
     const float Z = 1;
-	glm::vec3 origin = glm::vec3(0, 0, 0); // origin of the camera
+	glm::vec3 origin = glm::vec3(0.0, 0.0, 0.0); // origin of the camera
 
 	// Loop over all pixels and traverce the rays through the scene
     for (int i = 0; i < width ; i++) {
