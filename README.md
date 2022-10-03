@@ -3,7 +3,7 @@
 ### Assignment 1 - Ray Sphere Intersection
 <image src="./Assignment1/result.png" width="60%">
 
-### Assignment 1 - Phong Lighting model
+### Assignment 2 - Phong Lighting model
 <image src="./Assignment2/result.png" width="60%">
 
 
