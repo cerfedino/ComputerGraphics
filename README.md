@@ -4,7 +4,7 @@
 <image src="./Assignment1/result.png" width="60%">
 
 ### Assignment 2 - Phong Lighting model
-<image src="./Assignment2/result.png" width="60%">
+<image src="./Assignment2/result.gif" width="60%">
 
 
 ### Rendering
