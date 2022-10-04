@@ -162,18 +162,18 @@ vector<Object *> objects; ///< A list of all objects in the scene
 */
 glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec3 view_direction, Material material){
 
-
 	glm::vec3 color(0.0);
 
     for(Light* light : lights) {
-        glm::vec3 l = glm::normalize(light->position - point);
+        glm::vec3 l = glm::normalize(light->position - point); // direction from the point to the light source
         float diffuse = glm::dot(l, normal);
-
-        glm::vec3 h = glm::normalize((l+view_direction));
-        float specular = glm::pow(glm::dot(h,normal), 4*material.shininess);
         if (diffuse < 0) diffuse = 0;
+
+        glm::vec3 h = glm::normalize(l + view_direction); // half vector
+        float specular = glm::pow(glm::dot(h,normal), 4*material.shininess);
         if (specular < 0) specular = 0;
-        color += ((material.diffuse*diffuse + material.specular*specular)*light->color);
+
+        color += light->color * (material.diffuse*diffuse + material.specular*specular);
     }
     color += ambient_light*material.ambient;
 
