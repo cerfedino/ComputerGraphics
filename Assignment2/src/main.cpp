@@ -265,7 +265,7 @@ int main(int argc, const char * argv[]) {
     const float Z = 1;
 	glm::vec3 origin = glm::vec3(0.0, 0.0, 0.0); // origin of the camera
 
-	// Loop over all pixels and traverce the rays through the scene
+	// Loop over all pixels and traverse the rays through the scene
     for (int i = 0; i < width ; i++) {
         for (int j = 0; j < height ; j++) {
 
@@ -290,7 +290,7 @@ int main(int argc, const char * argv[]) {
 	if (argc == 2) {
 		image.writeImage(argv[2]);
 	} else {
-		image.writeImage("./result.ppm");
+		image.writeImage("./render/result.ppm");
 	}
 
     return 0;

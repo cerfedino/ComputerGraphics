@@ -299,7 +299,7 @@ int main(int argc, const char * argv[]) {
 	if (argc > 2) {
 		image.writeImage(argv[1]);
 	} else {
-		image.writeImage("./result.ppm");
+		image.writeImage("./render/result.ppm");
 	}
 
     return 0;
