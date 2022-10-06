@@ -160,6 +160,35 @@ So the intersection point is: $p = \begin{pmatrix} 7 \\ 0 \\ 13 \end{pmatrix}$
 
 
 \subsection{Task 2}
+\[
+k = 2 \\
+I = 1\\
+P_s = \frac{1}{2}\\
+P_d = \frac{1}{2}\\
+\]
+
+\begin{itemize}
+   \item \textbf{Specular term}\\
+   
+\begin{align*}
+   I_s &= p_s \cdot(\cos{\alpha})^k \cdot I \\&= \frac{1}{2} \cdot 1^2 \cdot 1 \\&= \frac{1}{2}
+\end{align*}
+   \item \textbf{Diffuse term}
+\begin{align*}
+   I_d &= p_d \cdot cos{\phi} \cdot = p_d \cdot \langle n,l \rangle \cdot I
+   \\&= \frac{1}{2} \cdot \langle \begin{pmatrix} 0\\1\\0\end{pmatrix},\begin{pmatrix} 1\\2\\2\end{pmatrix}\rangle \cdot 1
+   \\&= \frac{1}{2} \cdot = 1
+\end{align*}
+   \item \textbf{Total light}\\
+The attenuation in directional light is none i.e $attenuation = 1$
+\begin{align*}
+   I_{tot} = (I_s + I_d)\cdot attenuation = (\frac{1}{2} + 1) \cdot 1 = 1,5
+\end{align*}
+\end{itemize}
+
+% \begin{align*}
+
+% \end{align*}
 
 
 
@@ -192,13 +221,13 @@ As shown in \cref{fig:increasing_roughness}, increasing the surface roughness ma
    \begin{minipage}{.5\textwidth}
      \centering
      \includegraphics[width=.8\linewidth]{fig/increasing_surface_roughness.png}
-     \captionof{figure}{A figure}
+     \captionof{figure}{Effects of surface roughness variations}
      \label{fig:increasing_roughness}
    \end{minipage}%
    \begin{minipage}{.5\textwidth}
      \centering
      \includegraphics[width=.8\linewidth]{fig/actual_VS_lambertian-vase.png}
-     \captionof{figure}{Another figure}
+     \captionof{figure}{Real vase vs vase obtained through the \\Lambertian model}
      \label{fig:vases}
    \end{minipage}
 \end{figure}
@@ -228,12 +257,6 @@ When the roughness is set to 0 the Oren-Nayar model simplifies to the Lambertian
 % Even though the Sun is to be considered a \textit{point light} source,
 % it is so far away that once the rays reach the moon they are almost perfectly parallel,
 % behaving like a \textit{directional light} source by irradiating the moon surface equally.\\
-
-
-\section{Exercise 4}
-
-\clearpage
-
 
 \end{document}
 
