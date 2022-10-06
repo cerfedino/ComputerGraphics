@@ -164,8 +164,8 @@ int main(int argc, const char * argv[]) {
 	
     clock_t t = clock(); // variable for keeping the time of the rendering
     
-    int width = 1024; //width of the image
-    int height = 768; // height of the image
+    int width = 1920; //width of the image
+    int height = 1080; // height of the image
     float fov = 90; // field of view
 	
 	sceneDefinition(); // Let's define the scene
@@ -203,7 +203,7 @@ int main(int argc, const char * argv[]) {
 	if (argc == 2) {
 		image.writeImage(argv[2]);
 	} else {
-		image.writeImage("./result.ppm");
+		image.writeImage("./render/result.ppm");
 	}
 	
     return 0;

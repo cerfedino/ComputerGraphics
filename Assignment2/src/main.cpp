@@ -162,18 +162,20 @@ vector<Object *> objects; ///< A list of all objects in the scene
 */
 glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec3 view_direction, Material material){
 
-
 	glm::vec3 color(0.0);
 
-	/*
+    for(Light* light : lights) {
+        glm::vec3 l = glm::normalize(light->position - point); // direction from the point to the light source
+        float diffuse = glm::dot(l, normal);
+        if (diffuse < 0) diffuse = 0;
 
-	 Assignment 2
+        glm::vec3 h = glm::normalize(l + view_direction); // half vector
+        float specular = glm::pow(glm::dot(h,normal), 4*material.shininess);
+        if (specular < 0) specular = 0;
 
-	 Phong model.
-	 Your code should implement a loop over all the lightsourses in the array lights and agredate the contribution of each of them to the final color of the object.
-	 Outside of the loop add also the ambient component from ambient_light.
-
-	*/
+        color += light->color * (material.diffuse*diffuse + material.specular*specular);
+    }
+    color += ambient_light*material.ambient;
 
 	// The final color has to be clamped so the values do not go beyond 0 and 1.
 	color = glm::clamp(color, glm::vec3(0.0), glm::vec3(1.0));
@@ -203,15 +205,7 @@ glm::vec3 trace_ray(Ray ray){
 	glm::vec3 color(0.0);
 
 	if (closest_hit.hit) {
-		color = closest_hit.object->color;
-		/*
-
-		 Assignment 2
-
-		 Replace the above line of the code with the call of the function for computing Phong model below.
-
-		*/
-		//color = PhongModel(closest_hit.intersection, closest_hit.normal, glm::normalize(-ray.direction), closest_hit.object->getMaterial());
+		color = PhongModel(closest_hit.intersection, closest_hit.normal, glm::normalize(-ray.direction), closest_hit.object->getMaterial());
 	} else {
 		color = glm::vec3(0.0, 0.0, 0.0);
 	}
@@ -220,42 +214,45 @@ glm::vec3 trace_ray(Ray ray){
 /**
  Function defining the scene
  */
-void sceneDefinition (){
+void sceneDefinition() {
 
-	objects.push_back(new Sphere(1.0, glm::vec3(-0,-2,8), glm::vec3(0.6, 0.9, 0.6)));
-	objects.push_back(new Sphere(1.0, glm::vec3(1,-2,8), glm::vec3(0.6, 0.6, 0.9)));
+    // materials
+    Material blue;
+    blue.ambient = glm::vec3(0.07f, 0.07f, 0.1f);
+    blue.diffuse = glm::vec3(0.7f, 0.7f, 1.0f);
+    blue.specular = glm::vec3(0.6);
+    blue.shininess = 100.0;
+
+    Material red;
+    red.ambient = glm::vec3(0.01f, 0.03f, 0.03f);
+    red.diffuse = glm::vec3(1.0f, 0.3f, 0.3f);
+    red.specular = glm::vec3(0.5);
+    red.shininess = 10.0;
+
+    Material green;
+    green.ambient = glm::vec3(0.07f, 0.09f, 0.07f);
+    green.diffuse = glm::vec3(0.7f, 0.9f, 0.7f);
+    green.specular = glm::vec3(0.0);
+    green.shininess = 0.0;
 
 
-	/*
+    // objects
+    objects.push_back(new Sphere(1.0, glm::vec3(1.0, -2.0, 8.0), blue));
+    objects.push_back(new Sphere(0.5, glm::vec3(-1.0, -2.5, 6.0), red));
+    objects.push_back(new Sphere(1.0, glm::vec3(3.0, -2.0, 6.0), green));
 
-	 Assignment 2
-
-	 Add here all the objects to the scene. Remember to add them using the new constructor for the sphere with material structure.
-	 You will also need to define the materials.
-	 Example of adding one sphere:
-
-	 Material red_specular;
-	 red_specular.diffuse = glm::vec3(1.0f, 0.3f, 0.3f);
-	 red_specular.ambient = glm::vec3(0.1f, 0.03f, 0.03f);
-	 red_specular.specular = glm::vec3(0.5);
-	 red_specular.shininess = 10.0;
-
-	 objects.push_back(new Sphere(0.5, glm::vec3(-1,-2.5,6), red_specular));
-
-
-	 Remember also about adding some lights. For example a white light of intensity 0.4 and position in (0,26,5):
-
-	 lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(0.4)));
-
-	*/
+    // lights
+    lights.push_back(new Light(glm::vec3(0.0, 26.0, 5.0), glm::vec3(0.4)));
+    lights.push_back(new Light(glm::vec3(0.0, 1.0, 12.0), glm::vec3(0.4)));
+    lights.push_back(new Light(glm::vec3(0.0, 5.0, 1.0), glm::vec3(0.4)));
 }
 
 int main(int argc, const char * argv[]) {
 
     clock_t t = clock(); // variable for keeping the time of the rendering
 
-    int width = 1024; //width of the image
-    int height = 768; // height of the image
+    int width = 1920; //width of the image
+    int height = 1080; // height of the image
     float fov = 90; // field of view
 
 	sceneDefinition(); // Let's define the scene
@@ -268,7 +265,7 @@ int main(int argc, const char * argv[]) {
     const float Z = 1;
 	glm::vec3 origin = glm::vec3(0.0, 0.0, 0.0); // origin of the camera
 
-	// Loop over all pixels and traverce the rays through the scene
+	// Loop over all pixels and traverse the rays through the scene
     for (int i = 0; i < width ; i++) {
         for (int j = 0; j < height ; j++) {
 
@@ -293,7 +290,7 @@ int main(int argc, const char * argv[]) {
 	if (argc == 2) {
 		image.writeImage(argv[2]);
 	} else {
-		image.writeImage("./result.ppm");
+		image.writeImage("./render/result.ppm");
 	}
 
     return 0;

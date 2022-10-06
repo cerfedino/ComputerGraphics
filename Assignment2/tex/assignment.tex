@@ -9,14 +9,21 @@
 \usepackage{gensymb}
 \usepackage{amsmath}
 \usepackage{amsfonts}
+\usepackage[dvipsnames]{xcolor}
 \usepackage{multicol}
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage[linguistics]{forest}
 \usepackage{colortbl}
-\usepackage[dvipsnames]{xcolor}
 \usepackage{pdfpages}
 \usepackage{wrapfig}
+\usepackage{cleveref}
+
+
+% to fixme
+\usepackage{xcolor} 
+\definecolor{FIXMECOLOR}{rgb}{1,0,0}
+\newcommand{\FIXME}[1]{{\color{FIXMECOLOR}{\textbf{FIXME: #1}}}} 
 
 %% For plotting
 \usepackage{pgfplots}
@@ -44,7 +51,7 @@
 \newcommand\assignment{Assignment 2}
 
 \newcommand\subject{Computer Graphics}
-\newcommand\documentdate{23.09.2022}
+\newcommand\documentdate{3.10.2022}
 
 % Title content
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -78,7 +85,7 @@
 
        \vspace*{\fill}
      
-       \includegraphics[width=0.4\textwidth]{logo.png}
+       \includegraphics[width=0.4\textwidth]{fig/logo.png}
        
         \documentdate \\
         Università della Svizzera italiana\\
@@ -96,34 +103,160 @@
 % dots (/loosely/densely) + dotted, dashed, dashdotted
 \section{Exercise 2}
 
+The vector towards the directional light source: $ l = \begin{pmatrix} 1 \\ 2 \\ 2 \end{pmatrix}$.
 
+The position of the camera: $c = \begin{pmatrix} 4 \\ 6 \\ 7 \end{pmatrix}$.
+
+Given a plain $y = 0$ we have the normal $ n = (0, 1, 0)^T $
+
+\subsection{Task 1}
+
+We know that the reflected ray $r$ is:
+\begin{align*}
+   r 
+   &= 2n \cdot \langle n, l \rangle - l \\
+   &= 2\begin{pmatrix} 0 \\ 1 \\ 0 \end{pmatrix} \cdot \langle \begin{pmatrix} 0 \\ 1 \\ 0 \end{pmatrix}, \begin{pmatrix} 1 \\ 2 \\ 2 \end{pmatrix} \rangle - \begin{pmatrix} 1 \\ 2 \\ 2 \end{pmatrix}\\
+   &= 2\begin{pmatrix} 0 \\ 1 \\ 0 \end{pmatrix} \cdot 2 - \begin{pmatrix} 1 \\ 2 \\ 2 \end{pmatrix}\\
+   &= \begin{pmatrix} 0 \\ 4 \\ 0 \end{pmatrix} - \begin{pmatrix} 1 \\ 2 \\ 2 \end{pmatrix}\\
+   &= \begin{pmatrix} -1 \\ +2 \\ -2 \end{pmatrix}
+\end{align*}
+
+
+
+So: $ c - k r = p $
+\[
+   \begin{pmatrix} 4 \\ 6 \\ 7 \end{pmatrix} - k \begin{pmatrix} -1 \\ +2 \\ -2 \end{pmatrix} = \begin{pmatrix} x \\ y \\ z \end{pmatrix}
+\]
+Since $y$ is on the plain $y = 0$ we have $y = 0$ and we can solve the system:
+\[
+   \begin{cases}
+      4 - k (-1) = x \\
+      6 - k (2) = 0 \\
+      7 - k (-2) = z
+   \end{cases}
+\]
+\[
+   \begin{cases}
+      4 + k = x \\
+      6 - 2k = 0 \\
+      7 + 2k = z
+   \end{cases}
+\]
+\[
+   \begin{cases}
+      4 + k = x \\
+      k = 3 \\
+      7 + 2k = z
+   \end{cases}
+\]
+\[
+   \begin{cases}
+      x = 4+3=7 \\
+      k = 3 \\
+      z = 7 + 2 \cdot 3 = 13
+   \end{cases}
+\]
+So the intersection point is: $p = \begin{pmatrix} 7 \\ 0 \\ 13 \end{pmatrix}$
+
+
+\subsection{Task 2}
+\[
+k = 2 \\
+I = 1\\
+P_s = \frac{1}{2}\\
+P_d = \frac{1}{2}\\
+\]
+
+\begin{itemize}
+   \item \textbf{Specular term}\\
+   
+\begin{align*}
+   I_s &= p_s \cdot(\cos{\alpha})^k \cdot I \\&= \frac{1}{2} \cdot 1^2 \cdot 1 \\&= \frac{1}{2}
+\end{align*}
+   \item \textbf{Diffuse term}
+\begin{align*}
+   I_d &= p_d \cdot cos{\phi} \cdot = p_d \cdot \langle n,l \rangle \cdot I
+   \\&= \frac{1}{2} \cdot \langle \begin{pmatrix} 0\\1\\0\end{pmatrix},\begin{pmatrix} 1\\2\\2\end{pmatrix}\rangle \cdot 1
+   \\&= \frac{1}{2} \cdot = 1
+\end{align*}
+   \item \textbf{Total light}\\
+The attenuation in directional light is none i.e $attenuation = 1$
+\begin{align*}
+   I_{tot} = (I_s + I_d)\cdot attenuation = (\frac{1}{2} + 1) \cdot 1 = 1,5
+\end{align*}
+\end{itemize}
+
+% \begin{align*}
+
+% \end{align*}
+
+
+
+\newpage
 \section{Exercise 3}
 
 
-\section{Exercise 4}
+\begin{wrapfigure}{r}{0.3\textwidth}
+   \includegraphics[width=0.9\linewidth]{fig/Lambert_cosine_law.png} 
+   \caption{Lambert's cosine law}
+   \label{fig:lambert}
+\end{wrapfigure}
 
-% $$\underline{x} = \binom{0}{3},
-% \underline{y} = \binom{-3}{0}$$
-% Let us plot the vectors:
-% \begin{figure}[h!]
-% \begin{tikzpicture}
-%     \node[label=x] at (1.2,-0.2){};
-%     \draw[->] (-1,0) -- (1.5,0);
-%     \node[label=y] at (0.2,2.5){};
-%     \draw[->] (0,-1) -- (0,3);
-%     \node[label=$0$] at (0.2,-0.6){};
-%     \filldraw [black] (0,0) circle (1.2pt);
-    
-%     \node[black] at (-0.2,2) { \underline{\textbf{x}} };
-%     \draw[->, black, very thick] (0 , 0) -- (0 , 3);
-    
-%     \node[black] at (-2,0.2) { \underline{\textbf{y}} };
-%     \draw[->, black, very thick] (0 , 0) -- (-3,0);
-% \end{tikzpicture}
-% \end{figure}
 
-\clearpage
+The Phong lighting model is an empirical model to describe the illumination of the points representing an object.
+According to this model, the color of every pixel is modulated by the cosine of the angle between the normal vector and 
+the light direction (Lambert's cosine law) as shown in \cref{fig:lambert}.
 
+
+But we notice that some objects does not follow the Phong illumination model and apper flat. An example is the full moon: 
+ignoring the shading artifacts caused by craters, it appears as a white disk with constant brightness
+rather than a sphere shaded according to the Phong illumination.
+
+This effect is due to the roughness of the surface. 
+When rays hit the surface, they are reflected in random directions, including the direction of the camera.
+As shown in \cref{fig:increasing_roughness}, increasing the surface roughness makes the object appear flatter. 
+
+\begin{figure}[!hb]
+   \centering
+   \begin{minipage}{.5\textwidth}
+     \centering
+     \includegraphics[width=.8\linewidth]{fig/increasing_surface_roughness.png}
+     \captionof{figure}{Effects of surface roughness variations}
+     \label{fig:increasing_roughness}
+   \end{minipage}%
+   \begin{minipage}{.5\textwidth}
+     \centering
+     \includegraphics[width=.8\linewidth]{fig/actual_VS_lambertian-vase.png}
+     \captionof{figure}{Real vase vs vase obtained through the \\Lambertian model}
+     \label{fig:vases}
+   \end{minipage}
+\end{figure}
+
+In \cref{fig:vases} we note that the lambertian model doesn't work correctly with rough materials.
+
+To render rough objects more accurately, the Oren-Nayar model is often used, which takes into account surface roughness (\cref{fig:Oren-Nayar}).
+
+When the roughness is set to 0 the Oren-Nayar model simplifies to the Lambertian model.
+
+
+\begin{figure}[!h]
+   \centering
+   \includegraphics[width=0.7\linewidth]{fig/Oren-Nayar-Model-Vase.png} 
+   \caption{Oren-Nayar model}
+   \label{fig:Oren-Nayar}
+\end{figure}
+
+
+
+
+% \FIXME{fix this}
+
+% The Phong lighting model is used for \textit{point light} sources.
+% The light intensity levels in this case depend on the angle at which the light rays hit the surface. The smaller the angle between the ray and the surface normal, the higher resulting illumination.\\
+
+% Even though the Sun is to be considered a \textit{point light} source,
+% it is so far away that once the rays reach the moon they are almost perfectly parallel,
+% behaving like a \textit{directional light} source by irradiating the moon surface equally.\\
 
 \end{document}
 
