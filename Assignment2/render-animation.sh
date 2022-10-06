@@ -19,10 +19,10 @@ done
 
 
 # render mp4 video from all images
-ffmpeg -framerate 60 -pattern_type glob -i 'render/frames/*.jpg' -c:v libx264 -pix_fmt yuv420p render/result.mp4
+ffmpeg -y -framerate 60 -pattern_type glob -i 'render/frames/*.jpg' -c:v libx264 -pix_fmt yuv420p render/result.mp4
 
 # render gif animation from all images
-ffmpeg -framerate 60 -pattern_type glob -i 'render/frames/*.jpg' -loop 0 render/result.gif
+ffmpeg -y -framerate 60 -pattern_type glob -i 'render/frames/*.jpg' -loop 0 render/result.gif
 
 # Removes images folder
 rm -r render/frames
