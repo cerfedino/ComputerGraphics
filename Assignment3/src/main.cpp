@@ -159,29 +159,10 @@ public:
 		hit.hit = false;
 		
 		/*
-		 
-		 
-		 
+		
 		 Excercise 1 - Plane-ray intersection
 		 
-		 
-		 
-		 
 		 */
-
-		// plane ray intersection
-		
-		// float d = glm::dot(normal, point);
-		// float t = (d - glm::dot(normal, ray.origin)) / glm::dot(normal, ray.direction);
-
-		// if (t > 0) {
-		// 	hit.hit = true;
-		// 	hit.intersection = ray.origin + t * ray.direction;
-		// 	hit.normal = normal;
-		// 	hit.distance = glm::distance(ray.origin, hit.intersection);
-		// 	hit.object = this;
-		// }
-
 
 		float t = glm::dot(point - ray.origin, normal) / glm::dot(ray.direction, normal);
 		
