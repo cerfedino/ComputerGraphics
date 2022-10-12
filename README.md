@@ -6,6 +6,9 @@
 ### Assignment 2 - Phong Lighting model
 <image src="./Assignment2/render/result.gif" width="60%">
 
+### Assignment 3 - Ray-plane intersection, texturing, tone mapping
+<image src="./Assignment3/render/result.png" width="60%">
+
 
 ### Rendering
 1. `cd` into the target assignment folder
