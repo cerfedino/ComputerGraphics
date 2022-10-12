@@ -166,14 +166,19 @@ public:
 
 		/*
 
-
-
-		 Excercise 1 - Plane-ray intersection
-
-
-
+		 Exercise 1 - Plane-ray intersection
 
 		 */
+
+		float t = glm::dot(point - ray.origin, normal) / glm::dot(ray.direction, normal);
+
+		if (t > 0) {
+			hit.hit = true;
+			hit.intersection = ray.origin + t * ray.direction;
+			hit.normal = glm::normalize(normal);
+			hit.distance = glm::distance(ray.origin, hit.intersection);
+			hit.object = this;
+		}
 
 		return hit;
 	}
@@ -302,9 +307,9 @@ void sceneDefinition() {
     objects.push_back(new Sphere(1.0, glm::vec3(3.0, -2.0, 6.0), green));
 
     // Exercise 2 - Textured sphere
-    //Material textured;
-    //textured.texture = &checkerboardTexture;
-    //objects.push_back(new Sphere(7.0, glm::vec3(-6,4,23), textured));
+    Material textured;
+    textured.texture = &checkerboardTexture;
+    objects.push_back(new Sphere(7.0, glm::vec3(-6,4,23), textured));
 
 
 
@@ -313,6 +318,18 @@ void sceneDefinition() {
      Exercise 1 - Definition of planes and the materials
 
      */
+
+    // add six planes to form a cube
+    // y
+    objects.push_back(new Plane(glm::vec3(0,-3,0), glm::vec3(0,1,0), red));
+    objects.push_back(new Plane(glm::vec3(0,27,0), glm::vec3(0,-1,0), blue));
+    // x
+    objects.push_back(new Plane(glm::vec3(-15,0,0), glm::vec3(1,0,0), green));
+    objects.push_back(new Plane(glm::vec3(15,0,0), glm::vec3(-1,0,0), red));
+    // z
+    objects.push_back(new Plane(glm::vec3(0,0,-0.01), glm::vec3(0,0,-1), green));
+    objects.push_back(new Plane(glm::vec3(0,0,30), glm::vec3(0,0,1), green));
+
 
     // lights
     lights.push_back(new Light(glm::vec3(0.0, 26.0, 5.0), glm::vec3(0.4)));
