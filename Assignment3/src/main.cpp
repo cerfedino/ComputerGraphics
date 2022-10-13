@@ -8,6 +8,7 @@
 #include <ctime>
 #include <vector>
 #include "glm/glm.hpp"
+#include <algorithm>
 
 #include "Image.h"
 #include "Material.h"
@@ -131,17 +132,10 @@ public:
 		hit.normal = glm::normalize(hit.intersection - center);
 		hit.object = this;
 
-        /*
-
-
-         Exercise 2 - computing texture coordinates for the sphere. You can refer to them as s and t, or x and y, whatever you prefer ;)
-
-         hit.uv.s =
-         hit.uv.t =
-
-
-
-         */
+		// Texture mapping
+		hit.uv.x = 0.5 - asin(hit.normal.y) / M_PI;
+		hit.uv.y = 2*(0.5 + atan2(hit.normal.z, hit.normal.x) / (2 * M_PI));
+		
 		return hit;
     }
 };
@@ -217,12 +211,12 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
 
     for(Light* light : lights) {
         glm::vec3 l = glm::normalize(light->position - point); // direction from the point to the light source
-        /*
 
-         Exercise 2 - Modify the code by adding texturing, i.e., the diffuse color should be computed using one of the texture functions according to the texture coordinates stored in the uv variable. Make sure that the code works also for objects that should not have texture.
-
-         */
-
+		// If there is a texture, takes the diffuse colore of the texture instead.
+		glm::vec3 diffuse_color = material.diffuse;
+		if (material.texture != NULL) {
+			diffuse_color = material.texture(uv);
+		}
 
         float diffuse = glm::dot(l, normal);
         if (diffuse < 0) diffuse = 0;
@@ -230,15 +224,14 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
         glm::vec3 h = glm::normalize(l + view_direction); // half vector
         float specular = glm::pow(glm::dot(h,normal), 4*material.shininess);
         if (specular < 0) specular = 0;
-
-        color += light->color * (material.diffuse*diffuse + material.specular*specular);
+		
+		// Attenuation
+		float distance = glm::distance(point, light->position);
+		if (distance < 1) distance = 1.0;
+		const float attenuation = 1/ glm::pow(distance, 2);
+		//
+        color += attenuation * light->color * (diffuse_color*diffuse + material.specular*specular);
     }
-
-    /*
-
-     Exercise 3 - Modify the code by adding attenuation of the light due to distance from the intersection point to the light source
-
-     */
 
     color += ambient_light*material.ambient;
 
@@ -306,18 +299,15 @@ void sceneDefinition() {
     objects.push_back(new Sphere(0.5, glm::vec3(-1.0, -2.5, 6.0), red));
     objects.push_back(new Sphere(1.0, glm::vec3(3.0, -2.0, 6.0), green));
 
-    // Exercise 2 - Textured sphere
-    Material textured;
-    textured.texture = &checkerboardTexture;
-    objects.push_back(new Sphere(7.0, glm::vec3(-6,4,23), textured));
+    // Adding textured spheres
+    Material checkerboard;
+    checkerboard.texture = &checkerboardTexture;
+	Material spiral;
+	spiral.texture = &rainbowTexture;
+    objects.push_back(new Sphere(7.0, glm::vec3(-6,4,23), checkerboard));
+	objects.push_back(new Sphere(5.0, glm::vec3(7,3,23), spiral));
+	//
 
-
-
-    /*
-
-     Exercise 1 - Definition of planes and the materials
-
-     */
 
     // add six planes to form a cube
     // y
@@ -345,13 +335,11 @@ void sceneDefinition() {
  */
 glm::vec3 toneMapping(glm::vec3 intensity){
 
-    glm::vec3 tonemapped = intensity; //tonemapped intensity
+	const float alpha = 0.1;
+	const float beta = 0.8;
+	const float gamma = 1.8;
 
-    /*
-
-     Excercise 3 - Tone mapping
-
-     */
+	glm::vec3 tonemapped = glm::pow(alpha * glm::pow(intensity, beta), 1/gamma);
 
     return glm::clamp(tonemapped, glm::vec3(0.0), glm::vec3(1.0));
 }

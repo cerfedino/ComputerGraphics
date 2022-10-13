@@ -13,24 +13,24 @@
 
 glm::vec3 checkerboardTexture(glm::vec2 uv){
 
-    /*
-     
-     
-        Exercise 2 (3 points)
-     
-     
-    */
-    return glm::vec3(0.0);
+    int n = 30;
+    int f = int(floor(n*uv.x) + floor(n*uv.y)) % 2;
+
+    switch(f) {
+        case 0:  return glm::vec3(1.0);
+        default: return glm::vec3(0.0);
+    }
 }
+
 glm::vec3 rainbowTexture(glm::vec2 uv){
-    /*
-     
-     
-        Exercise 2 (5 points)
-     
-     
-    */
-    return glm::vec3(0.0);
+
+    int n = 20;
+    int f = int(n*(uv.x + uv.y)) % 3;
+    switch(f) {
+        case 0:  return glm::vec3(1, 0, 0);
+        case 1:  return glm::vec3(0, 1, 0);
+        default: return glm::vec3(0, 0, 1);
+    }
 }
 
 #endif /* Textures_h */
