@@ -350,9 +350,9 @@ void sceneDefinition() {
  */
 glm::vec3 toneMapping(glm::vec3 intensity){
 
-	const float alpha = 0.9;
-	const float beta = 0.8;
-	const float gamma = 1.8;
+	const float alpha = 1.2f;
+	const float beta = 1.8f;
+	const float gamma = 1.8f;
 
 	glm::vec3 tonemapped = intensity;
 
