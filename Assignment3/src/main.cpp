@@ -158,12 +158,6 @@ public:
 		Hit hit;
 		hit.hit = false;
 
-		/*
-
-		 Exercise 1 - Plane-ray intersection
-
-		 */
-
 		float t = glm::dot(point - ray.origin, normal) / glm::dot(ray.direction, normal);
 
 		if (t > 0) {
@@ -212,11 +206,8 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
     for(Light* light : lights) {
         glm::vec3 l = glm::normalize(light->position - point); // direction from the point to the light source
 
-		// If there is a texture, takes the diffuse colore of the texture instead.
-		glm::vec3 diffuse_color = material.diffuse;
-		if (material.texture != NULL) {
-			diffuse_color = material.texture(uv);
-		}
+		// If there is a texture, takes the diffuse color of the texture instead.
+		glm::vec3 diffuse_color = material.texture != NULL ? material.texture(uv) : material.diffuse;
 
         float diffuse = glm::dot(l, normal);
         if (diffuse < 0) diffuse = 0;
@@ -349,7 +340,7 @@ void sceneDefinition() {
  @return Tonemapped intensity in range (0,1)
  */
 glm::vec3 toneMapping(glm::vec3 intensity){
-
+	// Tonemapping parameters
 	const float alpha = 1.2f;
 	const float beta = 1.8f;
 	const float gamma = 1.8f;
@@ -379,7 +370,7 @@ int main(int argc, const char * argv[]) {
 
 	Image image(width,height); // Create an image where we will store the result
 
-	const float s = 2*tan(0.5*fov/180*M_PI)/width;; // size of one pixel
+	const float s = 2*tan(0.5*fov/180*M_PI)/width; // size of one pixel
 	const float X = -(width * s) / 2; // X coordinate of the first pixel
 	const float Y = (height * s) / 2; // Y coordinate of the first pixel
     const float Z = 1;
