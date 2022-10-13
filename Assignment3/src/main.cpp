@@ -330,7 +330,7 @@ void sceneDefinition() {
 
 /**
  Function performing tonemapping of the intensities computed using the raytracer
- @param intensity Input intensity
+ @param intensity Input intensity.
  @return Tonemapped intensity in range (0,1)
  */
 glm::vec3 toneMapping(glm::vec3 intensity){
@@ -339,9 +339,15 @@ glm::vec3 toneMapping(glm::vec3 intensity){
 	const float beta = 0.8;
 	const float gamma = 1.8;
 
-	glm::vec3 tonemapped = glm::pow(alpha * glm::pow(intensity, beta), 1/gamma);
+	intensity.x = glm::pow(intensity.x, beta);
+	intensity.y = glm::pow(intensity.y, beta);
+	intensity.z = glm::pow(intensity.z, beta);
+	intensity = alpha * intensity;
+	intensity.x = glm::pow(intensity.x,1/gamma);
+	intensity.y = glm::pow(intensity.y,1/gamma);
+	intensity.z = glm::pow(intensity.z,1/gamma);
 
-    return glm::clamp(tonemapped, glm::vec3(0.0), glm::vec3(1.0));
+    return glm::clamp(intensity, glm::vec3(0.0), glm::vec3(1.0));
 }
 
 int main(int argc, const char * argv[]) {
