@@ -227,7 +227,7 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
 		
 		// Attenuation
 		float distance = glm::distance(point, light->position);
-		if (distance < 1) distance = 1.0;
+		if (distance < 0.5) distance = 0.5;
 		const float attenuation = 1/ glm::pow(distance, 2);
 		//
         color += attenuation * light->color * (diffuse_color*diffuse + material.specular*specular);
@@ -289,9 +289,28 @@ void sceneDefinition() {
 
     Material green;
     green.ambient = glm::vec3(0.07f, 0.09f, 0.07f);
-    green.diffuse = glm::vec3(0.7f, 0.9f, 0.7f);
+    green.diffuse = glm::vec3(0.7f, 1.0f, 0.7f);
     green.specular = glm::vec3(0.0);
     green.shininess = 0.0;
+
+	Material white;
+	white.ambient = glm::vec3(0.1f, 0.1f, 0.1f);
+	white.diffuse = glm::vec3(0.9f, 0.9f, 0.9f);
+	white.specular = glm::vec3(0.5);
+	white.shininess = 10.0;
+
+    // Adding textured spheres
+    Material checkerboard;
+    checkerboard.texture = &checkerboardTexture;
+	checkerboard.ambient = glm::vec3(0.0f);
+	checkerboard.specular = glm::vec3(0.0);
+	checkerboard.shininess = 0.0;
+
+	Material rainbow;
+	rainbow.texture = &rainbowTexture;
+	rainbow.ambient = glm::vec3(0.0f);
+	rainbow.specular = glm::vec3(1.0);
+	rainbow.shininess = 10.0;
 
 
     // objects
@@ -299,22 +318,18 @@ void sceneDefinition() {
     objects.push_back(new Sphere(0.5, glm::vec3(-1.0, -2.5, 6.0), red));
     objects.push_back(new Sphere(1.0, glm::vec3(3.0, -2.0, 6.0), green));
 
-    // Adding textured spheres
-    Material checkerboard;
-    checkerboard.texture = &checkerboardTexture;
-	Material spiral;
-	spiral.texture = &rainbowTexture;
+	// textured spheres
     objects.push_back(new Sphere(7.0, glm::vec3(-6,4,23), checkerboard));
-	objects.push_back(new Sphere(5.0, glm::vec3(7,3,23), spiral));
-	//
+	objects.push_back(new Sphere(5.0, glm::vec3(7,3,23), rainbow));
+	
 
 
     // add six planes to form a cube
     // y
-    objects.push_back(new Plane(glm::vec3(0,-3,0), glm::vec3(0,1,0), red));
+    objects.push_back(new Plane(glm::vec3(0,-3,0), glm::vec3(0,1,0), white));
     objects.push_back(new Plane(glm::vec3(0,27,0), glm::vec3(0,-1,0), blue));
     // x
-    objects.push_back(new Plane(glm::vec3(-15,0,0), glm::vec3(1,0,0), green));
+    objects.push_back(new Plane(glm::vec3(-15,0,0), glm::vec3(1,0,0), blue));
     objects.push_back(new Plane(glm::vec3(15,0,0), glm::vec3(-1,0,0), red));
     // z
     objects.push_back(new Plane(glm::vec3(0,0,-0.01), glm::vec3(0,0,-1), green));
@@ -322,9 +337,9 @@ void sceneDefinition() {
 
 
     // lights
-    lights.push_back(new Light(glm::vec3(0.0, 26.0, 5.0), glm::vec3(0.4)));
-    lights.push_back(new Light(glm::vec3(0.0, 1.0, 12.0), glm::vec3(0.4)));
-    lights.push_back(new Light(glm::vec3(0.0, 5.0, 1.0), glm::vec3(0.4)));
+    lights.push_back(new Light(glm::vec3(0.0, 26.0, 5.0), glm::vec3(50.0)));
+    lights.push_back(new Light(glm::vec3(0.0, 1.0, 12.0), glm::vec3(30.0)));
+    lights.push_back(new Light(glm::vec3(0.0, 5.0, 1.0), glm::vec3(80.0)));
 }
 
 
@@ -335,19 +350,21 @@ void sceneDefinition() {
  */
 glm::vec3 toneMapping(glm::vec3 intensity){
 
-	const float alpha = 0.1;
+	const float alpha = 0.9;
 	const float beta = 0.8;
 	const float gamma = 1.8;
 
-	intensity.x = glm::pow(intensity.x, beta);
-	intensity.y = glm::pow(intensity.y, beta);
-	intensity.z = glm::pow(intensity.z, beta);
-	intensity = alpha * intensity;
-	intensity.x = glm::pow(intensity.x,1/gamma);
-	intensity.y = glm::pow(intensity.y,1/gamma);
-	intensity.z = glm::pow(intensity.z,1/gamma);
+	glm::vec3 tonemapped = intensity;
 
-    return glm::clamp(intensity, glm::vec3(0.0), glm::vec3(1.0));
+	tonemapped.y = glm::pow(tonemapped.y, beta);
+	tonemapped.z = glm::pow(tonemapped.z, beta);
+	tonemapped.x = glm::pow(tonemapped.x, beta);
+	tonemapped = alpha * tonemapped;
+	tonemapped.x = glm::pow(tonemapped.x,1.0/gamma);
+	tonemapped.y = glm::pow(tonemapped.y,1.0/gamma);
+	tonemapped.z = glm::pow(tonemapped.z,1.0/gamma);
+
+    return glm::clamp(tonemapped, glm::vec3(0.0), glm::vec3(1.0));
 }
 
 int main(int argc, const char * argv[]) {
