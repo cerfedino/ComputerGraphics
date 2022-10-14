@@ -171,8 +171,8 @@ int main(int argc, const char * argv[]) {
 	sceneDefinition(); // Let's define the scene
 	
 	Image image(width,height); // Create an image where we will store the result
-	
-	const float s =(2 * tan(fov/2)) / width; // size of one pixel
+
+    const float s = 2*tan(0.5*fov/180*M_PI)/width;; // size of one pixel
 	const float X = -(width * s) / 2; // X coordinate of the first pixel
 	const float Y = (height * s) / 2; // Y coordinate of the first pixel
     const float Z = 1;
