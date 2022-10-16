@@ -1,0 +1,103 @@
+\documentclass[tikz,14pt,fleqn]{article}
+
+
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage[titletoc,title]{appendix}
+\usepackage{latexsym}
+\usepackage{amssymb}
+\usepackage{gensymb}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage[linguistics]{forest}
+\usepackage{colortbl}
+\usepackage{pdfpages}
+\usepackage{wrapfig}
+\usepackage{cleveref}
+
+
+% to fixme
+\usepackage{xcolor} 
+\definecolor{FIXMECOLOR}{rgb}{1,0,0}
+\newcommand{\FIXME}[1]{{\color{FIXMECOLOR}{\textbf{FIXME: #1}}}} 
+
+%% For plotting
+\usepackage{pgfplots}
+\pgfplotsset{width=10cm,compat=1.9}
+\usepgfplotslibrary{external}
+\tikzexternalize
+%%
+\usepackage{dirtree}
+\usepackage{subcaption}
+\usepackage{xifthen}% provides \isempty test
+\usepackage{glossaries}
+
+\captionsetup[subfigure]{labelformat=empty}
+\definecolor{color1}{HTML}{0B0C10}
+\definecolor{color2}{HTML}{1F2833}
+\definecolor{color3}{HTML}{C5C6C7}
+\definecolor{color4}{HTML}{66FCF1}
+\definecolor{color5}{HTML}{45A29E}
+
+\pagestyle{fancy}
+\fancyhf{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% VARIABLES
+\newcommand\namesurname{Albert Cerfeda\\Alessandro Gobbetti}
+\newcommand\assignment{Assignment 4}
+
+\newcommand\subject{Computer Graphics}
+\newcommand\documentdate{18.10.2022}
+
+% Title content
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\rhead{\assignment}
+\lhead{\namesurname}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\rfoot{Page \thepage}
+\setlength{\parindent}{0pt}
+
+\newcommand\xdownarrow[1][2ex]{%
+   \mathrel{\rotatebox{90}{$\xleftarrow{\rule{#1}{0pt}}$}}
+}
+
+\begin{document}
+
+\begin{titlepage}
+   \begin{center}
+       \vspace*{1cm}
+
+       \textbf{\Large{Homework Assignment}}
+
+       \vspace{0.5cm}
+        \textbf{\subject}\\[5mm]
+       \assignment
+        
+            
+       \vspace{1.8cm}
+
+        \namesurname
+       \tableofcontents
+
+       \vspace*{\fill}
+     
+       \includegraphics[width=0.4\textwidth]{fig/logo.png}
+       
+        \documentdate \\
+        Università della Svizzera italiana\\
+        Faculty of Informatics\\
+        Switzerland\\
+
+   \end{center}
+\end{titlepage}
+
+
+
+
+
+\end{document}
+
