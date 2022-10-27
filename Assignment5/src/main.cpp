@@ -97,7 +97,7 @@ public:
         return ray;
     }
 
-    Hit toGlobalHit(Hit localHit) {
+    Hit toGlobalHit(Hit localHit, Ray ray) {
         if(!localHit.hit) { return localHit; }
 
 		Hit globalHit = localHit;
@@ -184,7 +184,7 @@ public:
 		hit.uv.x = 0.5 - asin(hit.normal.y) / M_PI;
 		hit.uv.y = 2*(0.5 + atan2(hit.normal.z, hit.normal.x) / (2 * M_PI));
 
-		return toGlobalHit(hit);
+		return toGlobalHit(hit, localRay);
     }
 };
 
@@ -221,44 +221,75 @@ public:
 };
 
 class Cone : public Object{
+
+private:
+    const float height = 1.0; ///< Local height of the cone
+    const glm::vec3 H = glm::vec3(0.0f, height, 0.0f); ///< Local height of the cone
+    const glm::vec3 O = glm::vec3(0.0f); ///< origin of the cone
+    const float radius = 1.0; ///< Local radius of the cone
+
 public:
 	Cone(Material material){
 		this->material = material;
 	}
+    Cone(glm::vec3 color, glm::mat4 transformation) {
+        this->color = color;
+        setTransformation(transformation);
+    }
+    Cone(Material material, glm::mat4 transformation) {
+        this->material = material;
+        setTransformation(transformation);
+    }
 	Hit intersect(Ray ray){
 		
 		Hit hit;
 		hit.hit = false;
-		
 
 		// Transform ray into local coordinate system
         Ray localRay = toLocalRay(ray);
-        //
+
+        float tan = (radius / height) * (radius / height);
+
+        float a = (localRay.direction.x * localRay.direction.x) +
+                  (localRay.direction.z * localRay.direction.z) -
+                  (tan*(localRay.direction.y * localRay.direction.y));
+        float b = (2*localRay.origin.x*localRay.direction.x) +
+                  (2*localRay.origin.z*localRay.direction.z) +
+                  (2*tan*(height-localRay.origin.y)*localRay.direction.y);
+        float c = (localRay.origin.x*localRay.origin.x) +
+                  (localRay.origin.z*localRay.origin.z) -
+                  (tan*((height-localRay.origin.y)*(height-localRay.origin.y)));
+
+        float delta = b*b - 4*a*c;
+        if (delta < 0) {
+            return hit;
+        }
+
+        float t1 = (-b - sqrt(delta)) / (2*a);
+        float t2 = (-b + sqrt(delta)) / (2*a);
+
+        float closest_t;
+        if (t1 < 0 && t2 < 0) {
+            return hit;
+        } else if (t1 < 0) {
+            closest_t = t2;
+        } else if (t2 < 0) {
+            closest_t = t1;
+        } else {
+            closest_t = t1 < t2 ? t1 : t2;
+        }
+
+        hit.distance = closest_t;
+        hit.intersection = localRay.origin + localRay.direction * hit.distance;
+        if (hit.intersection.y < 0 || hit.intersection.y > height) {
+            return hit;
+        }
+        hit.hit = true;
+        hit.normal = glm::normalize(hit.intersection);
+        hit.object = this;
 
 
-
-
-		/*  ---- Assignment 5 -----
-		
-		 Implement the ray-cone intersection. Before intersecting the ray with the cone,
-		 make sure that you transform the ray into the local coordinate system.
-		 Remember about normalizing all the directions after transformations.
-		 
-		*/
-	
-		/* If the intersection is found, you have to set all the critical fields in the Hit strucutre
-		 Remember that the final information about intersection point, normal vector and distance have to be given
-		 in the global coordinate system.
-		 
-		hit.hit = true;
-		hit.object = this;
-		hit.intersection =
-		hit.normal =
-		hit.distance =
-		
-		 */
-		
-		return toGlobalHit(hit);
+        return toGlobalHit(hit, localRay);
 	}
 };
 
@@ -325,13 +356,6 @@ glm::mat4 genTRMat(glm::vec3 t, // Translation
                    glm::vec3 r, // Rotation
                    glm::vec3 s  // Scaling
                                     ) {
-
-//    glm::mat4 T = glm::translate(glm::mat4(1.0f), t);
-//    glm::mat4 R = glm::rotate(glm::mat4(1.0f), r.x, glm::vec3(1, 0, 0));
-//    R = glm::rotate(R, r.y, glm::vec3(0, 1, 0));
-//    R = glm::rotate(R, r.z, glm::vec3(0, 0, 1));
-//    glm::mat4 S = glm::scale(glm::mat4(1.0f), s);
-//    return T * R * S;
     glm::mat4 trans = glm::translate(glm::mat4(1.0f),t);
     glm::mat4 rotat = glm::rotate(trans,glm::radians(r.x), glm::vec3(1,0,0));
     rotat = glm::rotate(rotat,glm::radians(r.y), glm::vec3(0,1,0));
@@ -427,7 +451,7 @@ void sceneDefinition() {
     glm::mat4 sp3_t = genTRMat(glm::vec3(3.0, -2.0, 6.0),glm::vec3(0.0),glm::vec3(1.0f));
     Sphere *sp3 = new Sphere(green,sp3_t);
 
-	// cout << glm::to_string(banana) << endl;
+
 
     objects.push_back(sp1);
     objects.push_back(sp2);
@@ -472,6 +496,14 @@ void sceneDefinition() {
 	objects.push_back(cone2);
 	
 	*/
+    glm::mat4 cone1_t = genTRMat(glm::vec3(5.0, -3.0, 14.0),glm::vec3(0.0),glm::vec3(3.0f, 12.0f, 3.0f));
+    Cone *cone = new Cone(white,cone1_t);
+
+    glm::mat4 cone2_t = genTRMat(glm::vec3(6.0, -3.0, 7.0),glm::vec3(0.0, 0.0, 0.0),glm::vec3(1.0f, 3.0f, 1.0f));
+    Cone *cone2 = new Cone(green,cone2_t);
+
+    objects.push_back(cone);
+    objects.push_back(cone2);
 
     // lights
     lights.push_back(new Light(glm::vec3(0.0, 26.0, 5.0), glm::vec3(50.0)));
