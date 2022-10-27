@@ -9,6 +9,9 @@
 ### Assignment 3 - Ray-plane intersection, texturing, tone mapping
 <image src="./Assignment3/render/result.png" width="60%">
 
+### Assignment 5 - Cone and transformations
+<image src="./Assignment5/render/result.png" width="60%">
+
 
 ### Rendering
 1. `cd` into the target assignment folder
