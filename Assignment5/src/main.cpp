@@ -245,7 +245,7 @@ public:
 };
 
 vector<Light *> lights; ///< A list of lights in the scene
-glm::vec3 ambient_light(1.0,1.0,1.0);
+glm::vec3 ambient_light(.8,.8,.8);
 vector<Object *> objects; ///< A list of all objects in the scene
 
 
@@ -266,16 +266,13 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
 		// If there is a texture, takes the diffuse color of the texture instead.
 		glm::vec3 diffuse_color = material.texture != NULL ? material.texture(uv) : material.diffuse;
 
-        float diffuse = glm::dot(l, normal);
-        if (diffuse < 0) diffuse = 0;
+        const float diffuse = max(0.0f, glm::dot(l, normal));
 
         glm::vec3 h = glm::normalize(l + view_direction); // half vector
-        float specular = glm::pow(glm::dot(h,normal), 4*material.shininess);
-        if (specular < 0) specular = 0;
+        const float specular = max(0.0f, glm::pow(glm::dot(h,normal), 4*material.shininess));
 		
 		// Attenuation
-		float distance = glm::distance(point, light->position);
-		if (distance < 0.5) distance = 0.5;
+		const float distance = max(0.1f, glm::distance(point, light->position));
 		const float attenuation = 1/ glm::pow(distance, 2);
 		//
         color += attenuation * light->color * (diffuse_color*diffuse + material.specular*specular);
@@ -284,8 +281,7 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
     color += ambient_light*material.ambient;
 
 	// The final color has to be clamped so the values do not go beyond 0 and 1.
-	color = glm::clamp(color, glm::vec3(0.0), glm::vec3(1.0));
-	return color;
+	return glm::clamp(color, glm::vec3(0.0), glm::vec3(1.0));
 }
 
 /**
@@ -416,17 +412,8 @@ glm::vec3 toneMapping(glm::vec3 intensity){
 	const float beta = 1.8f;
 	const float gamma = 1.8f;
 
-	glm::vec3 tonemapped = intensity;
-
-	tonemapped.y = glm::pow(tonemapped.y, beta);
-	tonemapped.z = glm::pow(tonemapped.z, beta);
-	tonemapped.x = glm::pow(tonemapped.x, beta);
-	tonemapped = alpha * tonemapped;
-	tonemapped.x = glm::pow(tonemapped.x,1.0/gamma);
-	tonemapped.y = glm::pow(tonemapped.y,1.0/gamma);
-	tonemapped.z = glm::pow(tonemapped.z,1.0/gamma);
-
-    return glm::clamp(tonemapped, glm::vec3(0.0), glm::vec3(1.0));
+	const glm::vec3 tonemapped = alpha * glm::pow(glm::pow(intensity, glm::vec3(beta)), glm::vec3(1.0/gamma));
+	return glm::clamp(tonemapped, glm::vec3(0.0), glm::vec3(1.0));
 }
 
 int main(int argc, const char * argv[]) {
