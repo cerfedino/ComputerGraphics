@@ -7,8 +7,9 @@
 #include <cmath>
 #include <ctime>
 #include <vector>
-#include "glm/glm.hpp"
 #include <algorithm>
+#include "glm/glm.hpp"
+#include "glm/gtx/transform.hpp"
 
 #include "Image.h"
 #include "Material.h"
@@ -50,6 +51,12 @@ struct Hit{
  General class for the object
  */
 class Object{
+	
+protected:
+	glm::mat4 transformationMatrix; ///< Matrix representing the transformation from the local to the global coordinate system
+	glm::mat4 inverseTransformationMatrix; ///< Matrix representing the transformation from the global to the local coordinate system
+	glm::mat4 normalMatrix; ///< Matrix for transforming normal vectors from the local to the global coordinate system
+	
 public:
 	glm::vec3 color; ///< Color of the object
 	Material material; ///< Structure describing the material of the object
@@ -65,6 +72,21 @@ public:
 	*/
 	void setMaterial(Material material){
 		this->material = material;
+	}
+	/** Functions for setting up all the transformation matrices
+	 @param matrix The matrix representing the transformation of the object in the global coordinates */
+	void setTransformation(glm::mat4 matrix){
+		
+		transformationMatrix = matrix;
+		
+		
+		/* ----- Assignment 5 ---------
+		 Set the two remaining matrices
+		
+		inverseTransformationMatrix =
+		normalMatrix =
+		 
+		 */
 	}
 };
 
@@ -168,6 +190,41 @@ public:
 			hit.object = this;
 		}
 
+		return hit;
+	}
+};
+
+class Cone : public Object{
+public:
+	Cone(Material material){
+		this->material = material;
+	}
+	Hit intersect(Ray ray){
+		
+		Hit hit;
+		hit.hit = false;
+		
+	
+		/*  ---- Assignment 5 -----
+		
+		 Implement the ray-cone intersection. Before intersecting the ray with the cone,
+		 make sure that you transform the ray into the local coordinate system.
+		 Remember about normalizing all the directions after transformations.
+		 
+		*/
+	
+		/* If the intersection is found, you have to set all the critical fields in the Hit strucutre
+		 Remember that the final information about intersection point, normal vector and distance have to be given
+		 in the global coordinate system.
+		 
+		hit.hit = true;
+		hit.object = this;
+		hit.intersection =
+		hit.normal =
+		hit.distance =
+		
+		 */
+		
 		return hit;
 	}
 };
@@ -326,6 +383,20 @@ void sceneDefinition() {
     objects.push_back(new Plane(glm::vec3(0,0,-0.01), glm::vec3(0,0,-1), green));
     objects.push_back(new Plane(glm::vec3(0,0,30), glm::vec3(0,0,1), green));
 
+	/* ----- Assignment 5 -------
+	Create two conse and add them to the collection of our objects.
+	Remember to create them with corresponding materials and transformation matrices
+	
+	
+	Cone *cone1 = new Cone(...);
+	cone1->setTransformation(...);
+	objects.push_back(cone1);
+	
+	Cone *cone2 = new Cone(...);
+	cone2->setTransformation(...);
+	objects.push_back(cone2);
+	
+	*/
 
     // lights
     lights.push_back(new Light(glm::vec3(0.0, 26.0, 5.0), glm::vec3(50.0)));
@@ -399,7 +470,7 @@ int main(int argc, const char * argv[]) {
 
 	// Writing the final results of the rendering
 	if (argc == 2) {
-		image.writeImage(argv[2]);
+		image.writeImage(argv[1]);
 	} else {
 		image.writeImage("./render/result.ppm");
 	}
