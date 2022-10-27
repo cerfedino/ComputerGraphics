@@ -92,8 +92,8 @@ public:
 	}
 
     Ray toLocalRay(Ray ray) {
-        ray.origin = glm::vec3(transformationMatrix * glm::vec4(ray.origin, 1.0f ));
-        ray.direction = glm::vec3(glm::normalize(transformationMatrix * glm::vec4(ray.direction, 0.0f)));
+        ray.origin = glm::vec3(inverseTransformationMatrix * glm::vec4(ray.origin, 1.0f ));
+        ray.direction = glm::normalize(glm::vec3(inverseTransformationMatrix * glm::vec4(ray.direction, 0.0f)));
         return ray;
     }
 
@@ -101,9 +101,10 @@ public:
         if(!localHit.hit) { return localHit; }
 
 		Hit globalHit = localHit;
-        globalHit.normal = glm::vec3(glm::normalize(normalMatrix * glm::vec4(globalHit.normal, 0.0f)));
-        globalHit.intersection = glm::vec3(inverseTransformationMatrix * glm::vec4(globalHit.intersection, 1.0f));
-//        globalHit.distance =
+        globalHit.normal = glm::normalize(glm::vec3(normalMatrix * glm::vec4(globalHit.normal, 0.0f)));
+        globalHit.intersection = glm::vec3(transformationMatrix * glm::vec4(globalHit.intersection, 1.0f));
+
+        globalHit.distance = glm::length(globalHit.intersection);
 
         return globalHit;
     }
@@ -130,7 +131,7 @@ public:
         this->color = color;
         setTransformation(transformation);
     }
-	Sphere(Material material, glm::mat4 transformation) : radius(radius){
+	Sphere(Material material, glm::mat4 transformation) {
 		this->material = material;
         setTransformation(transformation);
 	}
@@ -324,8 +325,17 @@ glm::mat4 genTRMat(glm::vec3 t, // Translation
                    glm::vec3 r, // Rotation
                    glm::vec3 s  // Scaling
                                     ) {
-    glm::mat4 trans = glm::translate(glm::mat4(1.0),t);
-    glm::mat4 rotat = glm::rotate(trans,1.0f, r);
+
+//    glm::mat4 T = glm::translate(glm::mat4(1.0f), t);
+//    glm::mat4 R = glm::rotate(glm::mat4(1.0f), r.x, glm::vec3(1, 0, 0));
+//    R = glm::rotate(R, r.y, glm::vec3(0, 1, 0));
+//    R = glm::rotate(R, r.z, glm::vec3(0, 0, 1));
+//    glm::mat4 S = glm::scale(glm::mat4(1.0f), s);
+//    return T * R * S;
+    glm::mat4 trans = glm::translate(glm::mat4(1.0f),t);
+    glm::mat4 rotat = glm::rotate(trans,glm::radians(r.x), glm::vec3(1,0,0));
+    rotat = glm::rotate(rotat,glm::radians(r.y), glm::vec3(0,1,0));
+    rotat = glm::rotate(rotat,glm::radians(r.z), glm::vec3(0,0,1));
     glm::mat4 scale = glm::scale(rotat, s);
     return scale;
 }
