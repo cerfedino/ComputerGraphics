@@ -10,6 +10,7 @@
 #include <algorithm>
 #include "glm/glm.hpp"
 #include "glm/gtx/transform.hpp"
+#include "glm/gtx/string_cast.hpp"
 
 #include "Image.h"
 #include "Material.h"
@@ -53,9 +54,9 @@ struct Hit{
 class Object{
 	
 protected:
-	glm::mat4 transformationMatrix; ///< Matrix representing the transformation from the local to the global coordinate system
-	glm::mat4 inverseTransformationMatrix; ///< Matrix representing the transformation from the global to the local coordinate system
-	glm::mat4 normalMatrix; ///< Matrix for transforming normal vectors from the local to the global coordinate system
+	glm::mat4 transformationMatrix = glm::mat4(1.0f); ///< Matrix representing the transformation from the local to the global coordinate system
+	glm::mat4 inverseTransformationMatrix = glm::mat4(1.0f); ///< Matrix representing the transformation from the global to the local coordinate system
+	glm::mat4 normalMatrix = glm::mat4(1.0f); ///< Matrix for transforming normal vectors from the local to the global coordinate system
 	
 public:
 	glm::vec3 color; ///< Color of the object
@@ -73,12 +74,13 @@ public:
 	void setMaterial(Material material){
 		this->material = material;
 	}
+
 	/** Functions for setting up all the transformation matrices
 	 @param matrix The matrix representing the transformation of the object in the global coordinates */
 	void setTransformation(glm::mat4 matrix){
-		
 		transformationMatrix = matrix;
-		
+		inverseTransformationMatrix = glm::inverse(transformationMatrix);
+		normalMatrix = glm::transpose(inverseTransformationMatrix);
 		
 		/* ----- Assignment 5 ---------
 		 Set the two remaining matrices
@@ -88,6 +90,23 @@ public:
 		 
 		 */
 	}
+
+    Ray toLocalRay(Ray ray) {
+        ray.origin = glm::vec3(transformationMatrix * glm::vec4(ray.origin, 1.0f ));
+        ray.direction = glm::vec3(glm::normalize(transformationMatrix * glm::vec4(ray.direction, 0.0f)));
+        return ray;
+    }
+
+    Hit toGlobalHit(Hit localHit) {
+        if(!localHit.hit) { return localHit; }
+
+		Hit globalHit = localHit;
+        globalHit.normal = glm::vec3(glm::normalize(normalMatrix * glm::vec4(globalHit.normal, 0.0f)));
+        globalHit.intersection = glm::vec3(inverseTransformationMatrix * glm::vec4(globalHit.intersection, 1.0f));
+//        globalHit.distance =
+
+        return globalHit;
+    }
 };
 
 /**
@@ -95,21 +114,25 @@ public:
  */
 class Sphere : public Object{
 private:
-    float radius; ///< Radius of the sphere
-    glm::vec3 center; ///< Center of the sphere
+    const float radius = 1; ///< Local radius of the sphere
+    const glm::vec3 center = glm::vec3(0.0f); ///< Local center of the sphere
 
 public:
 	/**
 	 The constructor of the sphere
-	 @param radius Radius of the sphere
 	 @param center Center of the sphere
 	 @param color Color of the sphere
 	 */
-    Sphere(float radius, glm::vec3 center, glm::vec3 color) : radius(radius), center(center){
+    Sphere(glm::vec3 color) {
 		this->color = color;
     }
-	Sphere(float radius, glm::vec3 center, Material material) : radius(radius), center(center){
+    Sphere(glm::vec3 color, glm::mat4 transformation) {
+        this->color = color;
+        setTransformation(transformation);
+    }
+	Sphere(Material material, glm::mat4 transformation) : radius(radius){
 		this->material = material;
+        setTransformation(transformation);
 	}
 	/** Implementation of the intersection function*/
     Hit intersect(Ray ray) {
@@ -117,9 +140,11 @@ public:
 		Hit hit;
 		hit.hit = false; // by default, there is no intersection
 
-		const glm::vec3 c = center - ray.origin; // center of the sphere in the coordinate system of the ray
+        Ray localRay = toLocalRay(ray);
 
-		const float a = glm::dot(c, ray.direction);
+        const glm::vec3 c = center - localRay.origin; // center of the sphere in the coordinate system of the ray
+
+		const float a = glm::dot(c, localRay.direction);
 
 		const float D_squared = glm::dot(c, c) - a*a;
 		const float D = sqrt(D_squared); // distance from the center of the sphere to the ray
@@ -150,15 +175,15 @@ public:
 
 		hit.hit = true;
 		hit.distance = closest_t;
-		hit.intersection = ray.origin + ray.direction * hit.distance;
+		hit.intersection = localRay.origin + localRay.direction * hit.distance;
 		hit.normal = glm::normalize(hit.intersection - center);
 		hit.object = this;
 
 		// Texture mapping
 		hit.uv.x = 0.5 - asin(hit.normal.y) / M_PI;
 		hit.uv.y = 2*(0.5 + atan2(hit.normal.z, hit.normal.x) / (2 * M_PI));
-		
-		return hit;
+
+		return toGlobalHit(hit);
     }
 };
 
@@ -204,7 +229,14 @@ public:
 		Hit hit;
 		hit.hit = false;
 		
-	
+
+		// Transform ray into local coordinate system
+        Ray localRay = toLocalRay(ray);
+        //
+
+
+
+
 		/*  ---- Assignment 5 -----
 		
 		 Implement the ray-cone intersection. Before intersecting the ray with the cone,
@@ -225,7 +257,7 @@ public:
 		
 		 */
 		
-		return hit;
+		return toGlobalHit(hit);
 	}
 };
 
@@ -285,6 +317,19 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
 }
 
 /**
+ * Generates a 4x4 transformation matrix given Translation (t*), Rotation (r*), Scaling (s*) parameters.
+ * @return
+ */
+glm::mat4 genTRMat(glm::vec3 t, // Translation
+                   glm::vec3 r, // Rotation
+                   glm::vec3 s  // Scaling
+                                    ) {
+    glm::mat4 trans = glm::translate(glm::mat4(1.0),t);
+    glm::mat4 rotat = glm::rotate(trans,1.0f, r);
+    glm::mat4 scale = glm::scale(rotat, s);
+    return scale;
+}
+/**
  Functions that computes a color along the ray
  @param ray Ray that should be traced through the scene
  @return Color at the intersection point
@@ -318,6 +363,8 @@ glm::vec3 trace_ray(Ray ray){
  */
 void sceneDefinition() {
 
+    glm::mat4 trans = genTRMat(glm::vec3(1,1,1),glm::vec3(1,1,1),glm::vec3(1,1,1));
+    cout << endl << glm::to_string(trans) << endl;
     // materials
     Material blue;
     blue.ambient = glm::vec3(0.07f, 0.07f, 0.1f);
@@ -358,13 +405,35 @@ void sceneDefinition() {
 
 
     // objects
-    objects.push_back(new Sphere(1.0, glm::vec3(1.0, -2.0, 8.0), blue));
-    objects.push_back(new Sphere(0.5, glm::vec3(-1.0, -2.5, 6.0), red));
-    objects.push_back(new Sphere(1.0, glm::vec3(3.0, -2.0, 6.0), green));
+//    objects.push_back(new Sphere(1.0, glm::vec3(1.0, -2.0, 8.0), blue));
+//    objects.push_back(new Sphere(0.5, glm::vec3(-1.0, -2.5, 6.0), red));
+//    objects.push_back(new Sphere(1.0, glm::vec3(3.0, -2.0, 6.0), green));
+    glm::mat4 sp1_t = genTRMat(glm::vec3(1.0, -2.0, 8.0),glm::vec3(0.0),glm::vec3(1.0));
+    Sphere *sp1 = new Sphere(blue,sp1_t);
 
-	// textured spheres
-    objects.push_back(new Sphere(7.0, glm::vec3(-6,4,23), checkerboard));
-	objects.push_back(new Sphere(5.0, glm::vec3(7,3,23), rainbow));
+    glm::mat4 sp2_t = genTRMat(glm::vec3(-1.0, -2.5, 6.0),glm::vec3(0.0),glm::vec3(0.5f));
+    Sphere *sp2 = new Sphere(red,sp2_t);
+
+    glm::mat4 sp3_t = genTRMat(glm::vec3(3.0, -2.0, 6.0),glm::vec3(0.0),glm::vec3(1.0f));
+    Sphere *sp3 = new Sphere(green,sp3_t);
+
+	// cout << glm::to_string(banana) << endl;
+
+    objects.push_back(sp1);
+    objects.push_back(sp2);
+    objects.push_back(sp3);
+
+    // textured spheres
+//    objects.push_back(new Sphere(7.0, glm::vec3(-6,4,23), checkerboard));
+//    objects.push_back(new Sphere(5.0, glm::vec3(7,3,23), rainbow));
+
+    glm::mat4 sp4_t = genTRMat(glm::vec3(-6,4,23),glm::vec3(0.0),glm::vec3(7.0f));
+    Sphere *sp4 = new Sphere(checkerboard, sp4_t);
+    glm::mat4 sp5_t = genTRMat(glm::vec3(7,3,23),glm::vec3(0.0),glm::vec3(5.0f));
+    Sphere *sp5 = new Sphere(rainbow, sp5_t);
+
+    objects.push_back(sp4);
+    objects.push_back(sp5);
 	
 
 
@@ -380,7 +449,7 @@ void sceneDefinition() {
     objects.push_back(new Plane(glm::vec3(0,0,30), glm::vec3(0,0,1), green));
 
 	/* ----- Assignment 5 -------
-	Create two conse and add them to the collection of our objects.
+	Create two cones and add them to the collection of our objects.
 	Remember to create them with corresponding materials and transformation matrices
 	
 	
