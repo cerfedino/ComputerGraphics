@@ -9,6 +9,6 @@ int main(int argc, char const *argv[]) {
     } else {
         filename = string("");
     }
-//    scene.objects.at(0)->setTransformation(genTRMat(glm::vec3(10.0, -2.0, 8.0),glm::vec3(0.0),glm::vec3(10.0)));
+   scene.objects.at(0)->setTransformation(genTRMat(glm::vec3(10.0, -2.0, 8.0),glm::vec3(0.0),glm::vec3(10.0)));
     return render(scene, filename);
 }
