@@ -343,7 +343,7 @@ struct Scene {
     vector<Object *> objects;
 };
 vector<Light *> lights; ///< A list of lights in the scene
-glm::vec3 ambient_light(.001,.001,.001);
+glm::vec3 ambient_light;
 vector<Object *> objects; ///< A list of all objects in the scene
 
 /** Function for computing color of an object according to the Phong Model
@@ -416,7 +416,7 @@ glm::vec3 trace_ray(Ray ray){
  */
 struct Scene sceneDefinition() {
     vector<Light *> lights;
-    glm::vec3 ambient_light(0.8f);
+    glm::vec3 ambient_light(1.7f);
     vector<Object *> objects;
 
     // Materials -------------------------------------------------------------------------------------------------------
@@ -501,7 +501,7 @@ struct Scene sceneDefinition() {
     // PLANES ----------------------------------------------------------------------------------------------------------
     // y
     glm::mat4 p1_t = genTRMat(glm::vec3(0.0, -3.0, 0.0),glm::vec3(0.0),glm::vec3(5.0f));
-    Plane *p1 = new Plane(checkerboard,p1_t);
+    Plane *p1 = new Plane(green,p1_t);
     objects.push_back(p1);
 
     glm::mat4 p2_t = genTRMat(glm::vec3(0.0, 27.0, 0.0),glm::vec3(180.0),glm::vec3(1.0f));
@@ -538,8 +538,8 @@ struct Scene sceneDefinition() {
 
     // lights
     lights.push_back(new Light(glm::vec3(0.0, 26.0, 5.0), glm::vec3(50.0)));
-    lights.push_back(new Light(glm::vec3(0.0, 1.0, 12.0), glm::vec3(30.0)));
-    lights.push_back(new Light(glm::vec3(0.0, 5.0, 1.0), glm::vec3(80.0)));
+    lights.push_back(new Light(glm::vec3(0.0, 3.0, 12.0), glm::vec3(30.0)));
+    lights.push_back(new Light(glm::vec3(0.0, 5.0, 1.0), glm::vec3(35.0)));
 
     struct Scene newscene;
     newscene.objects = objects;
