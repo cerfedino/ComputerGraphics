@@ -465,16 +465,14 @@ struct Scene sceneDefinition() {
 
 
     // SPHERES ---------------------------------------------------------------------------------------------------------
-    glm::mat4 sp1_t = genTRMat(glm::vec3(1.0, -2.0, 8.0),glm::vec3(0.0),glm::vec3(10.0));
+    glm::mat4 sp1_t = genTRMat(glm::vec3(1.0, -2.0, 8.0),glm::vec3(0.0),glm::vec3(1.0f));
     Sphere *sp1 = new Sphere(blue,sp1_t);
-    objects.push_back(sp1);
 
     glm::mat4 sp2_t = genTRMat(glm::vec3(-1.0, -2.5, 6.0),glm::vec3(0.0),glm::vec3(0.5f));
     Sphere *sp2 = new Sphere(red,sp2_t);
-    objects.push_back(sp2);
 
-    glm::mat4 sp3_t = genTRMat(glm::vec3(3.0, -2.0, 6.0),glm::vec3(0.0),glm::vec3(1.0f));
-    Sphere *sp3 = new Sphere(green,sp3_t);
+    // glm::mat4 sp3_t = genTRMat(glm::vec3(3.0, -2.0, 6.0),glm::vec3(0.0),glm::vec3(1.0f));
+    // Sphere *sp3 = new Sphere(green,sp3_t);
 
 	// cout << glm::to_string(banana) << endl;
 
@@ -488,8 +486,8 @@ struct Scene sceneDefinition() {
 
     glm::mat4 sp4_t = genTRMat(glm::vec3(-6,4,23),glm::vec3(0.0),glm::vec3(7.0f));
     Sphere *sp4 = new Sphere(checkerboard, sp4_t);
-    glm::mat4 sp5_t = genTRMat(glm::vec3(7,3,23),glm::vec3(0.0),glm::vec3(5.0f));
-    Sphere *sp5 = new Sphere(rainbow, sp5_t);
+    // glm::mat4 sp5_t = genTRMat(glm::vec3(7,3,23),glm::vec3(0.0),glm::vec3(5.0f));
+    // Sphere *sp5 = new Sphere(rainbow, sp5_t);
 
     objects.push_back(sp4);
     // objects.push_back(sp5);
