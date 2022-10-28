@@ -44,7 +44,7 @@ string padStart(char pad, int number, string str) {
 
 int main(int argc, char const *argv[]) {
     const int frames = 120;
-    // Sets the pad lenght based on the digits of 'frames'
+    // Sets the pad length based on the digits of 'frames'
     const int pad = log10(frames)+1;
 
     struct Scene scene = sceneDefinition();

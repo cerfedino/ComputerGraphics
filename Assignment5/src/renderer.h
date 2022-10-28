@@ -474,8 +474,6 @@ struct Scene sceneDefinition() {
     // glm::mat4 sp3_t = genTRMat(glm::vec3(3.0, -2.0, 6.0),glm::vec3(0.0),glm::vec3(1.0f));
     // Sphere *sp3 = new Sphere(green,sp3_t);
 
-	// cout << glm::to_string(banana) << endl;
-
     objects.push_back(sp1);
     objects.push_back(sp2);
     // objects.push_back(sp3);
@@ -495,8 +493,6 @@ struct Scene sceneDefinition() {
     glm::mat4 sp6_t = genTRMat(glm::vec3(0.0, 27.0, 0.0),glm::vec3(0.0),glm::vec3(1.0f));
     Plane *sp6 = new Plane(blue,sp6_t);
     objects.push_back(sp6);
-
-    cout << endl << objects.size() << endl;
 
     // PLANES ----------------------------------------------------------------------------------------------------------
     // y
