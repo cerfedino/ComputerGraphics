@@ -11,7 +11,7 @@ main.out: src/main.cpp src/renderer.h
 clean:
 	rm -r  render/ *.out
 # Recipe for rendering everything
-renderall: render/result.png animation
+all: render/result.png animation
 
 
 # Recipes for rendering the animation

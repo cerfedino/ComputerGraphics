@@ -10,32 +10,42 @@
 - Exercise 2
 - Exercise 3
 
-## How to compile and run
-A `Makefile` is provided, to compile and run the project run the following command:
+## Rendering
+1. `cd` into the target assignment folder
+```bash
+cd Assignment1
+```
+
+2. A `Makefile` is provided, for compiling and rendering:
+
+
+- To render the **still image**, run the default recipe;
 ```bash
 make
 ```
-This will create a folder called `render` where the output images will be stored.
-The `.ppm` file is also converted to `.png` for easier viewing.
-
-By default, the program will render an image of the scene described by the `sceneDefinition()` function in `renderer.h`.
-
-To render an animation, run the following command:
+- To render the **animation**, run the following command:
 ```bash
 make animation
 ```
-A `.gif` loop animation and a `.mp4` video will be created.
-All the frames are stored in a new folder called `render/animation`.
-The animation is defined in the `animation.cpp` file.
-
-To render both the image and the animation, run the following command:
+- To render both:
 ```bash
-make renderall
+make all
 ```
-
-
-By running the following command :
+- To remove the `render` folder and all the executables
 ```bash
 make clean
 ```
-The `render` folder and all the executables will be deleted.
+\
+\
+A folder `render` containing the rendered material is created.
+
+We use `ffmpeg` to convert the rendered `.ppm` file into `.png`.
+
+All the frames are stored in a new folder called `render/animation`.
+The animation frames are joined together by `ffmpeg` into a `.gif` loop animation and an `.mp4` file.
+\
+\
+\
+By default, the program will render an image of the scene described by the `sceneDefinition()` function in `renderer.h`.
+
+The animation is defined in the `animation.cpp` file.
