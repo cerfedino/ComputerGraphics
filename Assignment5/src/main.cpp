@@ -33,6 +33,22 @@ public:
     }
 };
 
+/**
+ * Generates a 4x4 transformation matrix given Translation (t*), Rotation (r*), Scaling (s*) parameters.
+ * @return
+ */
+glm::mat4 genTRMat(glm::vec3 t, // Translation
+                   glm::vec3 r, // Rotation
+                   glm::vec3 s  // Scaling
+) {
+    glm::mat4 trans = glm::translate(glm::mat4(1.0f),t);
+    glm::mat4 rotat = glm::rotate(trans,glm::radians(r.x), glm::vec3(1,0,0));
+    rotat = glm::rotate(rotat,glm::radians(r.y), glm::vec3(0,1,0));
+    rotat = glm::rotate(rotat,glm::radians(r.z), glm::vec3(0,0,1));
+    glm::mat4 scale = glm::scale(rotat, s);
+    return scale;
+}
+
 
 class Object;
 
@@ -81,14 +97,6 @@ public:
 		transformationMatrix = matrix;
 		inverseTransformationMatrix = glm::inverse(transformationMatrix);
 		normalMatrix = glm::transpose(inverseTransformationMatrix);
-		
-		/* ----- Assignment 5 ---------
-		 Set the two remaining matrices
-		
-		inverseTransformationMatrix =
-		normalMatrix =
-		 
-		 */
 	}
 
     Ray toLocalRay(Ray ray) {
@@ -104,7 +112,7 @@ public:
         globalHit.normal = glm::normalize(glm::vec3(normalMatrix * glm::vec4(globalHit.normal, 0.0f)));
         globalHit.intersection = glm::vec3(transformationMatrix * glm::vec4(globalHit.intersection, 1.0f));
 
-        globalHit.distance = glm::length(globalHit.intersection);
+        globalHit.distance = glm::length(globalHit.intersection - ray.origin);
 
         return globalHit;
     }
@@ -184,7 +192,7 @@ public:
 		hit.uv.x = 0.5 - asin(hit.normal.y) / M_PI;
 		hit.uv.y = 2*(0.5 + atan2(hit.normal.z, hit.normal.x) / (2 * M_PI));
 
-		return toGlobalHit(hit, localRay);
+		return toGlobalHit(hit, ray);
     }
 };
 
@@ -192,31 +200,42 @@ public:
 class Plane : public Object{
 
 private:
-	glm::vec3 normal;
-	glm::vec3 point;
+	glm::vec3 normal = glm::vec3(0.0f, 1.0f, 0.0f); ///< Local normal of the plane
+	glm::vec3 point = glm::vec3(0.0f); ///< Local point on the plane
 
 public:
-	Plane(glm::vec3 point, glm::vec3 normal) : point(point), normal(normal){
-	}
-	Plane(glm::vec3 point, glm::vec3 normal, Material material) : point(point), normal(normal){
-		this->material = material;
-	}
+//	Plane(glm::vec3 point, glm::vec3 normal) : point(point), normal(normal){
+//	}
+//	Plane(glm::vec3 point, glm::vec3 normal, Material material) : point(point), normal(normal){
+//		this->material = material;
+//	}
+    Plane(Material material, glm::mat4 transformation) {
+        this->material = material;
+        setTransformation(transformation);
+    }
 	Hit intersect(Ray ray){
 
 		Hit hit;
 		hit.hit = false;
 
-		float t = glm::dot(point - ray.origin, normal) / glm::dot(ray.direction, normal);
+        // Transform ray into local coordinate system
+        Ray localRay = toLocalRay(ray);
+
+		float t = glm::dot(point - localRay.origin, normal) / glm::dot(localRay.direction, normal);
 
 		if (t > 0) {
 			hit.hit = true;
-			hit.intersection = ray.origin + t * ray.direction;
+			hit.intersection = localRay.origin + t * localRay.direction;
 			hit.normal = glm::normalize(normal);
-			hit.distance = glm::distance(ray.origin, hit.intersection);
+			hit.distance = glm::distance(localRay.origin, hit.intersection);
 			hit.object = this;
 		}
 
-		return hit;
+        // Texture mapping
+        hit.uv.x = 0.1*hit.intersection.x;
+        hit.uv.y = 0.1*hit.intersection.z;
+
+		return toGlobalHit(hit, ray);
 	}
 };
 
@@ -232,10 +251,6 @@ public:
 	Cone(Material material){
 		this->material = material;
 	}
-    Cone(glm::vec3 color, glm::mat4 transformation) {
-        this->color = color;
-        setTransformation(transformation);
-    }
     Cone(Material material, glm::mat4 transformation) {
         this->material = material;
         setTransformation(transformation);
@@ -278,9 +293,20 @@ public:
         } else {
             closest_t = t1 < t2 ? t1 : t2;
         }
-
         hit.distance = closest_t;
         hit.intersection = localRay.origin + localRay.direction * hit.distance;
+
+        // create a plain at the base of the cone
+        Plane base = Plane(material, genTRMat(glm::vec3(0),glm::vec3(180.0, 0, 0),glm::vec3(0.5f)));
+        Hit baseHit = base.intersect(localRay);
+
+        if (baseHit.hit && baseHit.distance < closest_t || (hit.intersection.y < 0 || hit.intersection.y > height)) {
+            float distance = glm::distance(baseHit.intersection, O);
+            if (distance <= radius) {
+                return toGlobalHit(baseHit, ray);
+            }
+        }
+
         if (hit.intersection.y < 0 || hit.intersection.y > height) {
             return hit;
         }
@@ -288,8 +314,11 @@ public:
         hit.normal = glm::normalize(hit.intersection);
         hit.object = this;
 
+        // Texture mapping
+        hit.uv.x = 0.5 - asin(hit.normal.y) / M_PI;
+        hit.uv.y = 2*(0.5 + atan2(hit.normal.z, hit.normal.x) / (2 * M_PI));
 
-        return toGlobalHit(hit, localRay);
+        return toGlobalHit(hit, ray);
 	}
 };
 
@@ -309,7 +338,7 @@ public:
 };
 
 vector<Light *> lights; ///< A list of lights in the scene
-glm::vec3 ambient_light(.8,.8,.8);
+glm::vec3 ambient_light(.001,.001,.001);
 vector<Object *> objects; ///< A list of all objects in the scene
 
 
@@ -348,21 +377,7 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
 	return glm::clamp(color, glm::vec3(0.0), glm::vec3(1.0));
 }
 
-/**
- * Generates a 4x4 transformation matrix given Translation (t*), Rotation (r*), Scaling (s*) parameters.
- * @return
- */
-glm::mat4 genTRMat(glm::vec3 t, // Translation
-                   glm::vec3 r, // Rotation
-                   glm::vec3 s  // Scaling
-                                    ) {
-    glm::mat4 trans = glm::translate(glm::mat4(1.0f),t);
-    glm::mat4 rotat = glm::rotate(trans,glm::radians(r.x), glm::vec3(1,0,0));
-    rotat = glm::rotate(rotat,glm::radians(r.y), glm::vec3(0,1,0));
-    rotat = glm::rotate(rotat,glm::radians(r.z), glm::vec3(0,0,1));
-    glm::mat4 scale = glm::scale(rotat, s);
-    return scale;
-}
+
 /**
  Functions that computes a color along the ray
  @param ray Ray that should be traced through the scene
@@ -397,9 +412,7 @@ glm::vec3 trace_ray(Ray ray){
  */
 void sceneDefinition() {
 
-    glm::mat4 trans = genTRMat(glm::vec3(1,1,1),glm::vec3(1,1,1),glm::vec3(1,1,1));
-    cout << endl << glm::to_string(trans) << endl;
-    // materials
+    // Materials -------------------------------------------------------------------------------------------------------
     Material blue;
     blue.ambient = glm::vec3(0.07f, 0.07f, 0.1f);
     blue.diffuse = glm::vec3(0.7f, 0.7f, 1.0f);
@@ -418,13 +431,19 @@ void sceneDefinition() {
     green.specular = glm::vec3(0.0);
     green.shininess = 0.0;
 
+    Material yellow;
+    yellow.ambient = glm::vec3(0.07f, 0.07f, 0.07f);
+    yellow.diffuse = glm::vec3(1.0f, 1.0f, 0.0f);
+    yellow.specular = glm::vec3(1.0);
+    yellow.shininess = 100.0;
+
 	Material white;
 	white.ambient = glm::vec3(0.1f, 0.1f, 0.1f);
 	white.diffuse = glm::vec3(0.9f, 0.9f, 0.9f);
 	white.specular = glm::vec3(0.5);
 	white.shininess = 10.0;
 
-    // Adding textured spheres
+    // Procedural textures
     Material checkerboard;
     checkerboard.texture = &checkerboardTexture;
 	checkerboard.ambient = glm::vec3(0.0f);
@@ -438,77 +457,71 @@ void sceneDefinition() {
 	rainbow.shininess = 10.0;
 
 
-    // objects
-//    objects.push_back(new Sphere(1.0, glm::vec3(1.0, -2.0, 8.0), blue));
-//    objects.push_back(new Sphere(0.5, glm::vec3(-1.0, -2.5, 6.0), red));
-//    objects.push_back(new Sphere(1.0, glm::vec3(3.0, -2.0, 6.0), green));
+    // SPHERES ---------------------------------------------------------------------------------------------------------
     glm::mat4 sp1_t = genTRMat(glm::vec3(1.0, -2.0, 8.0),glm::vec3(0.0),glm::vec3(1.0));
     Sphere *sp1 = new Sphere(blue,sp1_t);
+    objects.push_back(sp1);
 
     glm::mat4 sp2_t = genTRMat(glm::vec3(-1.0, -2.5, 6.0),glm::vec3(0.0),glm::vec3(0.5f));
     Sphere *sp2 = new Sphere(red,sp2_t);
+    objects.push_back(sp2);
 
     glm::mat4 sp3_t = genTRMat(glm::vec3(3.0, -2.0, 6.0),glm::vec3(0.0),glm::vec3(1.0f));
     Sphere *sp3 = new Sphere(green,sp3_t);
-
-
-
-    objects.push_back(sp1);
-    objects.push_back(sp2);
-    objects.push_back(sp3);
+//    objects.push_back(sp3);
 
     // textured spheres
-//    objects.push_back(new Sphere(7.0, glm::vec3(-6,4,23), checkerboard));
-//    objects.push_back(new Sphere(5.0, glm::vec3(7,3,23), rainbow));
-
     glm::mat4 sp4_t = genTRMat(glm::vec3(-6,4,23),glm::vec3(0.0),glm::vec3(7.0f));
     Sphere *sp4 = new Sphere(checkerboard, sp4_t);
+    objects.push_back(sp4);
+
     glm::mat4 sp5_t = genTRMat(glm::vec3(7,3,23),glm::vec3(0.0),glm::vec3(5.0f));
     Sphere *sp5 = new Sphere(rainbow, sp5_t);
-
-    objects.push_back(sp4);
-    objects.push_back(sp5);
-	
+//    objects.push_back(sp5);
 
 
-    // add six planes to form a cube
+    // PLANES ----------------------------------------------------------------------------------------------------------
     // y
-    objects.push_back(new Plane(glm::vec3(0,-3,0), glm::vec3(0,1,0), white));
-    objects.push_back(new Plane(glm::vec3(0,27,0), glm::vec3(0,-1,0), blue));
+    glm::mat4 p1_t = genTRMat(glm::vec3(0.0, -3.0, 0.0),glm::vec3(0.0),glm::vec3(5.0f));
+    Plane *p1 = new Plane(checkerboard,p1_t);
+    objects.push_back(p1);
+
+    glm::mat4 p2_t = genTRMat(glm::vec3(0.0, 27.0, 0.0),glm::vec3(180.0),glm::vec3(1.0f));
+    Plane *p2 = new Plane(blue,p2_t);
+    objects.push_back(p2);
+
     // x
-    objects.push_back(new Plane(glm::vec3(-15,0,0), glm::vec3(1,0,0), blue));
-    objects.push_back(new Plane(glm::vec3(15,0,0), glm::vec3(-1,0,0), red));
+    glm::mat4 p3_t = genTRMat(glm::vec3(-15.0, 0.0, 0.0),glm::vec3(0.0, 0, -90),glm::vec3(1.0f));
+    Plane *p3 = new Plane(blue,p3_t);
+    objects.push_back(p3);
+
+    glm::mat4 p4_t = genTRMat(glm::vec3(15.0, 0.0, 0.0),glm::vec3(0.0, 0, 90),glm::vec3(1.0f));
+    Plane *p4 = new Plane(red,p4_t);
+    objects.push_back(p4);
+
     // z
-    objects.push_back(new Plane(glm::vec3(0,0,-0.01), glm::vec3(0,0,-1), green));
-    objects.push_back(new Plane(glm::vec3(0,0,30), glm::vec3(0,0,1), green));
+    glm::mat4 p5_t = genTRMat(glm::vec3(0.0, 0.0, -0.01),glm::vec3(90.0, 0, 0),glm::vec3(1.0f));
+    Plane *p5 = new Plane(green,p5_t);
+    objects.push_back(p5);
 
-	/* ----- Assignment 5 -------
-	Create two cones and add them to the collection of our objects.
-	Remember to create them with corresponding materials and transformation matrices
-	
-	
-	Cone *cone1 = new Cone(...);
-	cone1->setTransformation(...);
-	objects.push_back(cone1);
-	
-	Cone *cone2 = new Cone(...);
-	cone2->setTransformation(...);
-	objects.push_back(cone2);
-	
-	*/
+    glm::mat4 p6_t = genTRMat(glm::vec3(0.0, 0.0, 30.0),glm::vec3(-90.0, 0, 0),glm::vec3(1.0f));
+    Plane *p6 = new Plane(rainbow,p6_t);
+    objects.push_back(p6);
+
+
+    // CONES -----------------------------------------------------------------------------------------------------------
     glm::mat4 cone1_t = genTRMat(glm::vec3(5.0, -3.0, 14.0),glm::vec3(0.0),glm::vec3(3.0f, 12.0f, 3.0f));
-    Cone *cone = new Cone(white,cone1_t);
+    Cone *cone1 = new Cone(yellow,cone1_t);
+    objects.push_back(cone1);
 
-    glm::mat4 cone2_t = genTRMat(glm::vec3(6.0, -3.0, 7.0),glm::vec3(0.0, 0.0, 0.0),glm::vec3(1.0f, 3.0f, 1.0f));
-    Cone *cone2 = new Cone(green,cone2_t);
-
-    objects.push_back(cone);
+    glm::mat4 cone2_t = genTRMat(glm::vec3(3.0, -2.0, 9.0),glm::vec3(0.0, 0.0, -110.0),glm::vec3(1.0f, 3.0f, 1.0f));
+    Cone *cone2 = new Cone(checkerboard,cone2_t);
     objects.push_back(cone2);
 
-    // lights
-    lights.push_back(new Light(glm::vec3(0.0, 26.0, 5.0), glm::vec3(50.0)));
-    lights.push_back(new Light(glm::vec3(0.0, 1.0, 12.0), glm::vec3(30.0)));
-    lights.push_back(new Light(glm::vec3(0.0, 5.0, 1.0), glm::vec3(80.0)));
+// LIGHTS --------------------------------------------------------------------------------------------------------------
+    lights.push_back(new Light(glm::vec3(0.0, 26.0, 5.0), glm::vec3(40.0)));
+    lights.push_back(new Light(glm::vec3(0.0, 1.0, 12.0), glm::vec3(20.0)));
+    lights.push_back(new Light(glm::vec3(0.0, 5.0, 1.0), glm::vec3(60.0)));
 }
 
 
