@@ -11,7 +11,7 @@
 #include "glm/glm.hpp"
 #include "glm/gtx/transform.hpp"
 #include "glm/gtx/string_cast.hpp"
-
+#include <string>
 #include "Image.h"
 #include "Material.h"
 
@@ -452,7 +452,7 @@ struct Scene sceneDefinition() {
 //    objects.push_back(new Sphere(1.0, glm::vec3(1.0, -2.0, 8.0), blue));
 //    objects.push_back(new Sphere(0.5, glm::vec3(-1.0, -2.5, 6.0), red));
 //    objects.push_back(new Sphere(1.0, glm::vec3(3.0, -2.0, 6.0), green));
-    glm::mat4 sp1_t = genTRMat(glm::vec3(1.0, -2.0, 8.0),glm::vec3(0.0),glm::vec3(10.0));
+    glm::mat4 sp1_t = genTRMat(glm::vec3(1.0, -2.0, 8.0),glm::vec3(0.0),glm::vec3(1.0));
     Sphere *sp1 = new Sphere(blue,sp1_t);
 
     glm::mat4 sp2_t = genTRMat(glm::vec3(-1.0, -2.5, 6.0),glm::vec3(0.0),glm::vec3(0.5f));
@@ -545,11 +545,11 @@ glm::vec3 toneMapping(glm::vec3 intensity){
 
 
 
-int render(struct Scene renderScene, int argc, const char * argv[]) {
+int render(struct Scene renderScene, string filename) {
     clock_t t = clock(); // variable for keeping the time of the rendering
 
-    int width = 1920; //width of the image
-    int height = 1080; // height of the image
+    int width = 960; //width of the image
+    int height = 540; // height of the image
     float fov = 90; // field of view
 
     lights = renderScene.lights;
@@ -586,8 +586,9 @@ int render(struct Scene renderScene, int argc, const char * argv[]) {
     cout<<"I could render at "<< (float)CLOCKS_PER_SEC/((float)t) << " frames per second."<<endl;
 
     // Writing the final results of the rendering
-    if (argc == 2) {
-        image.writeImage(argv[1]);
+    cout << "Saving render to file '"<< filename << "'";
+    if (!filename.empty()) {
+        image.writeImage(filename.c_str());
     } else {
         image.writeImage("./render/result.ppm");
     }
