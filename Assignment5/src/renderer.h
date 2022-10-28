@@ -565,14 +565,18 @@ glm::vec3 toneMapping(glm::vec3 intensity){
 }
 
 
-
+/**
+ * Renders a Scene and outputs the result into a file.
+ * 
+ * @param renderScene the Scene to render.
+ * @param filename the output file filename.
+ * @return int the exit status.
+ */
 int render(struct Scene renderScene, string filename) {
     clock_t t = clock(); // variable for keeping the time of the rendering
 
     int width = 960; //width of the image
     int height = 540; // height of the image
-    // int width = 280; //width of the image
-    // int height = 136; // height of the image
     float fov = 90; // field of view
 
     lights = renderScene.lights;
