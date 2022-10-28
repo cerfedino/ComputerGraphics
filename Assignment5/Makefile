@@ -17,7 +17,7 @@ renderall: render/result.png animation
 # Recipes for rendering the animation
 animation: render/result.gif
 render/result.gif: render/result.mp4
-	ffmpeg -y -framerate 60 -pattern_type glob -i 'render/animation/*.ppm' -loop 0 render/result.gif
+	ffmpeg -y -framerate 30 -pattern_type glob -i 'render/animation/*.ppm' -loop 0 render/result.gif
 render/result.mp4: animation.out render/animation/
 	./animation.out && ffmpeg -y -framerate 30 -pattern_type glob -i 'render/animation/*.ppm' -c:v libx264 -pix_fmt yuv420p render/result.mp4
 animation.out: src/animation.cpp src/renderer.h

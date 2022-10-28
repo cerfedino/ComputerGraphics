@@ -486,11 +486,17 @@ struct Scene sceneDefinition() {
 
     glm::mat4 sp4_t = genTRMat(glm::vec3(-6,4,23),glm::vec3(0.0),glm::vec3(7.0f));
     Sphere *sp4 = new Sphere(checkerboard, sp4_t);
-    // glm::mat4 sp5_t = genTRMat(glm::vec3(7,3,23),glm::vec3(0.0),glm::vec3(5.0f));
-    // Sphere *sp5 = new Sphere(rainbow, sp5_t);
+    glm::mat4 sp5_t = genTRMat(glm::vec3(-6,0.0,16),glm::vec3(0.0),glm::vec3(3.0f));
+    Sphere *sp5 = new Sphere(rainbow, sp5_t);
 
     objects.push_back(sp4);
-    // objects.push_back(sp5);
+    objects.push_back(sp5);
+
+    glm::mat4 sp6_t = genTRMat(glm::vec3(0.0, 27.0, 0.0),glm::vec3(0.0),glm::vec3(1.0f));
+    Plane *sp6 = new Plane(blue,sp6_t);
+    objects.push_back(sp6);
+
+    cout << endl << objects.size() << endl;
 
     // PLANES ----------------------------------------------------------------------------------------------------------
     // y
@@ -565,6 +571,8 @@ int render(struct Scene renderScene, string filename) {
 
     int width = 960; //width of the image
     int height = 540; // height of the image
+    // int width = 280; //width of the image
+    // int height = 136; // height of the image
     float fov = 90; // field of view
 
     lights = renderScene.lights;
