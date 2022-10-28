@@ -4,6 +4,9 @@
 # Executables
 *.out
 
+## Rendered Files
+render/animation/*
+
 ## latex/pdflatex auxiliary files:
 *.aux
 *.lof
