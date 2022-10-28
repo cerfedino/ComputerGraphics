@@ -10,7 +10,7 @@
 <image src="./Assignment3/render/result.png" width="60%">
 
 ### Assignment 5 - Cone and transformations
-<image src="./Assignment5/render/result.png" width="60%">
+<image src="./Assignment5/render/result.gif" width="60%">
 
 
 ### Rendering

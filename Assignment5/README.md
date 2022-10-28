@@ -1,5 +1,5 @@
 # Assignment 5 - Cone and transformations
-<image src="./render/result.png" width="60%">
+<image src="./render/result.gif" width="60%">
 
 ## Authors
 - Alessandro Gobbetti
