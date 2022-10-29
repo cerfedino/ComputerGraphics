@@ -5,7 +5,7 @@
 *.out
 
 ## Rendered Files
-render/animation/*
+Assignment*/render/animation/*
 
 ## latex/pdflatex auxiliary files:
 *.aux

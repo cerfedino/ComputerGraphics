@@ -22,7 +22,7 @@ cd Assignment1
 2. A `Makefile` is provided, for compiling and rendering:
 
 
-- To render the **still image**, run the default recipe;
+- To render the **still image**, run the default recipe:
 ```bash
 make
 ```
@@ -44,7 +44,7 @@ A folder `render` containing the rendered material is created.
 
 We use `ffmpeg` to convert the rendered `.ppm` file into `.png`.
 
-All the frames are stored in a new folder called `render/animation`.
+All the frames are stored in `render/animation`.
 The animation frames are joined together by `ffmpeg` into a `.gif` loop animation and an `.mp4` file.
 \
 \
