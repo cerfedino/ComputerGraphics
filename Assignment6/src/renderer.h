@@ -255,44 +255,42 @@ public:
         this->material = material;
         setTransformation(transformation);
     }
-	Hit intersect(Ray ray){
-		
-		Hit hit;
-		hit.hit = false;
+	Hit intersect(Ray ray) {
 
-		// Transform ray into local coordinate system
+        Hit hit;
+        hit.hit = false;
+
+        // Transform ray into local coordinate system
         Ray localRay = toLocalRay(ray);
 
         float tan = (radius / height) * (radius / height);
 
         float a = (localRay.direction.x * localRay.direction.x) +
                   (localRay.direction.z * localRay.direction.z) -
-                  (tan*(localRay.direction.y * localRay.direction.y));
-        float b = (2*localRay.origin.x*localRay.direction.x) +
-                  (2*localRay.origin.z*localRay.direction.z) +
-                  (2*tan*(height-localRay.origin.y)*localRay.direction.y);
-        float c = (localRay.origin.x*localRay.origin.x) +
-                  (localRay.origin.z*localRay.origin.z) -
-                  (tan*((height-localRay.origin.y)*(height-localRay.origin.y)));
+                  (tan * (localRay.direction.y * localRay.direction.y));
+        float b = (2 * localRay.origin.x * localRay.direction.x) +
+                  (2 * localRay.origin.z * localRay.direction.z) +
+                  (2 * tan * (height - localRay.origin.y) * localRay.direction.y);
+        float c = (localRay.origin.x * localRay.origin.x) +
+                  (localRay.origin.z * localRay.origin.z) -
+                  (tan * ((height - localRay.origin.y) * (height - localRay.origin.y)));
 
-        float delta = b*b - 4*a*c;
+        float delta = b * b - 4 * a * c;
         if (delta < 0) {
             return hit;
         }
 
-        float t1 = (-b - sqrt(delta)) / (2*a);
-        float t2 = (-b + sqrt(delta)) / (2*a);
+        // Hits on the cone
 
-        float closest_t;
-        if (t1 < 0 && t2 < 0) {
+        float t1 = (-b - sqrt(delta)) / (2 * a);
+        float t2 = (-b + sqrt(delta)) / (2 * a);
+
+        float closest_t = t1 < 0 ? t2 : t1;
+        if (closest_t < 0) {
             return hit;
-        } else if (t1 < 0) {
-            closest_t = t2;
-        } else if (t2 < 0) {
-            closest_t = t1;
-        } else {
-            closest_t = t1 < t2 ? t1 : t2;
         }
+
+
         hit.distance = closest_t;
         hit.intersection = localRay.origin + localRay.direction * hit.distance;
 
@@ -300,6 +298,7 @@ public:
         Plane base = Plane(material, genTRMat(glm::vec3(0),glm::vec3(180.0, 0, 0),glm::vec3(0.5f)));
         Hit baseHit = base.intersect(localRay);
 
+        // Check for intersections on the rounded base of the cone
         if (baseHit.hit && baseHit.distance < closest_t || (hit.intersection.y < 0 || hit.intersection.y > height)) {
             float distance = glm::distance(baseHit.intersection, O);
             if (distance <= radius) {
@@ -307,6 +306,7 @@ public:
             }
         }
 
+        // Discards intersections on the direction of the cone sides that are outside the cone shape.
         if (hit.intersection.y < 0 || hit.intersection.y > height) {
             return hit;
         }
@@ -346,19 +346,61 @@ vector<Light *> lights; ///< A list of lights in the scene
 glm::vec3 ambient_light;
 vector<Object *> objects; ///< A list of all objects in the scene
 
+/**
+ * Given a Ray returns the closest Hit structure.
+ * @param ray the ray to intersect with the Objects of the scene
+ * @return
+ */
+Hit closest_intersection(Ray ray) {
+    // hit structure representing the closest intersection
+    Hit closest_hit;
+
+    closest_hit.hit = false;
+    closest_hit.distance = INFINITY;
+
+    //Loop over all objects to find the closest intersection
+    for (Object *object : objects) {
+        Hit hit = object->intersect(ray);
+        if (hit.hit && hit.distance < closest_hit.distance) {
+            closest_hit = hit;
+        }
+    }
+
+    return closest_hit;
+}
+
 /** Function for computing color of an object according to the Phong Model
  @param point A point belonging to the object for which the color is computed
  @param normal A normal vector the the point
  @param uv Texture coordinates
  @param view_direction A normalized direction from the point to the viewer/camera
  @param material A material structure representing the material of the object
+ @param maxBounces compute reflection rays for a maximum amount of levels. Limits recursive calls.
 */
-glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 view_direction, Material material){
+glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 view_direction, Material material, const int maxBounces){
 
 	glm::vec3 color(0.0);
 
+
     for(Light* light : lights) {
         glm::vec3 l = glm::normalize(light->position - point); // direction from the point to the light source
+
+        // Shadow
+        // origin of the shadow ray is moved a little to avoid self intersection
+        const float distance_from_light = glm::distance(point, light->position);
+        Ray shadowRay = Ray(point + 0.001f * l, l);
+        Hit shadowHit;
+        for (Object *object : objects) {
+            Hit hit = object->intersect(shadowRay);
+            if (hit.hit && hit.distance <= distance_from_light) {
+                shadowHit = hit;
+                break;
+            }
+        }
+        // If the shadow ray hits an object, the point is in shadow and we don/t compute ambient/diffuse.
+        if (shadowHit.hit) {
+            continue;
+        }
 
 		// If there is a texture, takes the diffuse color of the texture instead.
 		glm::vec3 diffuse_color = material.texture != NULL ? material.texture(uv) : material.diffuse;
@@ -369,10 +411,22 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
         const float specular = max(0.0f, glm::pow(glm::dot(h,normal), 4*material.shininess));
 		
 		// Attenuation
-		const float distance = max(0.1f, glm::distance(point, light->position));
+		const float distance = max(0.1f, distance_from_light);
 		const float attenuation = 1/ glm::pow(distance, 2);
 		//
         color += attenuation * light->color * (diffuse_color*diffuse + material.specular*specular);
+    }
+
+    // Recursively computes Phong for reflected ray(s)
+    // Blends color of material with color of reflection based on reflectivity
+    color = (1 - material.reflectivity) * color;
+    if (material.reflectivity > 0 && maxBounces > 0) {
+        glm::vec3 reflection_direction = glm::reflect(-view_direction, normal);
+        Ray reflection_ray = Ray(point + 0.001f * reflection_direction, reflection_direction);
+        Hit closest_hit = closest_intersection(reflection_ray);
+        if (closest_hit.hit) {
+            color += material.reflectivity*PhongModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-reflection_direction), closest_hit.object->getMaterial(), maxBounces-1);
+        }
     }
 
     color += ambient_light*material.ambient;
@@ -387,30 +441,19 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
  @param ray Ray that should be traced through the scene
  @return Color at the intersection point
  */
-glm::vec3 trace_ray(Ray ray){
+glm::vec3 trace_ray(Ray ray) {
 
-	// hit structure representing the closest intersection
-	Hit closest_hit;
-
-	closest_hit.hit = false;
-	closest_hit.distance = INFINITY;
-
-	//Loop over all objects to find the closest intersection
-	for (int k = 0; k<objects.size(); k++) {
-		Hit hit = objects[k]->intersect(ray);
-		if (hit.hit == true && hit.distance < closest_hit.distance)
-			closest_hit = hit;
-	}
+    Hit closest_hit = closest_intersection(ray);
 
 	glm::vec3 color(0.0);
 
 	if (closest_hit.hit) {
-        color = PhongModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-ray.direction), closest_hit.object->getMaterial());
-	} else {
-		color = glm::vec3(0.0, 0.0, 0.0);
+        color = PhongModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-ray.direction), closest_hit.object->getMaterial(), 5);
 	}
+
 	return color;
 }
+
 /**
  Function defining the default scene;
  */
@@ -425,6 +468,7 @@ struct Scene sceneDefinition() {
     blue.diffuse = glm::vec3(0.7f, 0.7f, 1.0f);
     blue.specular = glm::vec3(0.6);
     blue.shininess = 100.0;
+    blue.reflectivity = 1.0f;
 
     Material red;
     red.ambient = glm::vec3(0.01f, 0.03f, 0.03f);
