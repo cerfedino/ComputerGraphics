@@ -389,7 +389,7 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
         // origin of the shadow ray is moved a little to avoid self intersection
         const float distance_from_light = glm::distance(point, light->position);
         Ray shadowRay = Ray(point + 0.001f * l, l);
-        Hit shadowHit;
+        Hit shadowHit = Hit();
         for (Object *object : objects) {
             Hit hit = object->intersect(shadowRay);
             if (hit.hit && hit.distance <= distance_from_light) {
@@ -419,7 +419,7 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
 
     // Recursively computes Phong for reflected ray(s)
     // Blends color of material with color of reflection based on reflectivity
-    color = (1 - material.reflectivity) * color;
+    color = (1.0f-material.reflectivity)*color;
     if (material.reflectivity > 0 && maxBounces > 0) {
         glm::vec3 reflection_direction = glm::reflect(-view_direction, normal);
         Ray reflection_ray = Ray(point + 0.001f * reflection_direction, reflection_direction);
@@ -487,6 +487,7 @@ struct Scene sceneDefinition() {
     yellow.diffuse = glm::vec3(1.0f, 1.0f, 0.0f);
     yellow.specular = glm::vec3(1.0);
     yellow.shininess = 100.0;
+    yellow.reflectivity = 0.5f;
 
 	Material white;
 	white.ambient = glm::vec3(0.1f, 0.1f, 0.1f);
@@ -500,6 +501,8 @@ struct Scene sceneDefinition() {
 	checkerboard.ambient = glm::vec3(0.0f);
 	checkerboard.specular = glm::vec3(0.0);
 	checkerboard.shininess = 0.0;
+    checkerboard.reflectivity = 0.5f;
+
 
 	Material rainbow;
 	rainbow.texture = &rainbowTexture;
