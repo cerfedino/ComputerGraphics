@@ -419,13 +419,31 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
 
     // Recursively computes Phong for reflected ray(s)
     // Blends color of material with color of reflection based on reflectivity
-    color = (1.0f-material.reflectivity)*color;
     if (material.reflectivity > 0 && maxBounces > 0) {
+        color = (1.0f-material.reflectivity)*color;
         glm::vec3 reflection_direction = glm::reflect(-view_direction, normal);
         Ray reflection_ray = Ray(point + 0.001f * reflection_direction, reflection_direction);
         Hit closest_hit = closest_intersection(reflection_ray);
         if (closest_hit.hit) {
             color += material.reflectivity*PhongModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-reflection_direction), closest_hit.object->getMaterial(), maxBounces-1);
+        }
+    }
+
+
+    // Refraction
+    if (material.refractivity > 0 && maxBounces > 0) {
+        color = (1.0f-material.refractivity)*color;
+        const bool is_entering = glm::dot(normal, -view_direction) < 0.0f;
+        /* TODO:    We assume that one of the two materials is air, whether we are entering or exiting.
+                    How would we compute a glass sphere submerged in water ? */
+        const float transitioning_material = 1.0f;
+        const float eta = is_entering ? transitioning_material/material.refraction_index : material.refraction_index/transitioning_material;
+        glm::vec3 refraction_direction = glm::refract(-view_direction, is_entering ? normal : -normal, eta);
+        Ray refraction_ray = Ray(point + 0.001f * refraction_direction, refraction_direction);
+
+        Hit closest_hit = closest_intersection(refraction_ray);
+        if (closest_hit.hit) {
+            color += material.refractivity*PhongModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-refraction_direction), closest_hit.object->getMaterial(), maxBounces-1);
         }
     }
 
@@ -448,7 +466,7 @@ glm::vec3 trace_ray(Ray ray) {
 	glm::vec3 color(0.0);
 
 	if (closest_hit.hit) {
-        color = PhongModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-ray.direction), closest_hit.object->getMaterial(), 5);
+        color = PhongModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-ray.direction), closest_hit.object->getMaterial(), 8);
 	}
 
 	return color;
@@ -501,7 +519,7 @@ struct Scene sceneDefinition() {
 	checkerboard.ambient = glm::vec3(0.0f);
 	checkerboard.specular = glm::vec3(0.0);
 	checkerboard.shininess = 0.0;
-    checkerboard.reflectivity = 0.5f;
+    checkerboard.reflectivity = 0.4f;
 
 
 	Material rainbow;
@@ -509,6 +527,10 @@ struct Scene sceneDefinition() {
 	rainbow.ambient = glm::vec3(0.0f);
 	rainbow.specular = glm::vec3(1.0);
 	rainbow.shininess = 10.0;
+
+    Material refractive;
+    refractive.refractivity = 1.0f;
+    refractive.refraction_index = 2.0f;
 
 
     // SPHERES ---------------------------------------------------------------------------------------------------------
@@ -541,10 +563,14 @@ struct Scene sceneDefinition() {
     Plane *sp6 = new Plane(blue,sp6_t);
     objects.push_back(sp6);
 
+    glm::mat4 sp7_t = genTRMat(glm::vec3(-3.0, -1.0, 8.0),glm::vec3(0.0),glm::vec3(2.0f));
+    Sphere *sp7 = new Sphere(refractive,sp7_t);
+    objects.push_back(sp7);
+
     // PLANES ----------------------------------------------------------------------------------------------------------
     // y
     glm::mat4 p1_t = genTRMat(glm::vec3(0.0, -3.0, 0.0),glm::vec3(0.0),glm::vec3(5.0f));
-    Plane *p1 = new Plane(green,p1_t);
+    Plane *p1 = new Plane(checkerboard,p1_t);
     objects.push_back(p1);
 
     glm::mat4 p2_t = genTRMat(glm::vec3(0.0, 27.0, 0.0),glm::vec3(180.0),glm::vec3(1.0f));
@@ -618,8 +644,12 @@ glm::vec3 toneMapping(glm::vec3 intensity){
 int render(struct Scene renderScene, string filename) {
     clock_t t = clock(); // variable for keeping the time of the rendering
 
-    int width = 960; //width of the image
-    int height = 540; // height of the image
+    // int width = 960; //width of the image
+    // int height = 540; // height of the image
+
+    int width = 1920; //width of the image
+    int height = 1080; // height of the image
+
     float fov = 90; // field of view
 
     lights = renderScene.lights;
@@ -636,6 +666,10 @@ int render(struct Scene renderScene, string filename) {
 
     // Loop over all pixels and traverse the rays through the scene
     for (int i = 0; i < width ; i++) {
+        // Print progress
+        if (i % 10 == 0) {
+            cout << "Rendering: " << round((float)i/width*10000)/100 << "%\r" << flush;
+        }
         for (int j = 0; j < height ; j++) {
 
             // X coordinate of the current pixel
