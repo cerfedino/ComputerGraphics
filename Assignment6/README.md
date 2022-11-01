@@ -1,4 +1,4 @@
-# Assignment 5 - Cone and transformations
+# Assignment 6 - Shadows, Reﬂection, and Refraction
 <image src="./render/result.gif" width="60%">
 
 ## Authors

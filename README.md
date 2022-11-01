@@ -12,6 +12,9 @@
 ### Assignment 5 - Cone and transformations
 <image src="./Assignment5/render/result.gif" width="60%">
 
+### Assignment 6 - Shadows, Reﬂection, and Refraction
+<image src="./Assignment6/render/result.gif" width="60%">
+
 
 # Rendering
 1. `cd` into the target assignment folder
