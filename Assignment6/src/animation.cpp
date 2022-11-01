@@ -65,7 +65,7 @@ int main(int argc, char const *argv[]) {
     for (; i < frames/2; i++,number++) {
         // Animation progress percentage
         const float percentage = (i/(float)frames)*2.0;
-        cout << "\n\nFrame "<<number+1<<"/"<<frames<<" ["<<number/(float)frames*100.0 << "%]\nAnimating:"<<percentage*100;
+        cout << "\n\nFrame "<<number+1<<"/"<<frames+1<<" ["<<number/(float)frames*100.0 << "%]\nAnimating:"<<percentage*100;
 
         string filename ("render/animation/render_"+padStart('0',pad,to_string(number))+".ppm");
         cout << "\n'" << filename << "'\n";
@@ -74,7 +74,7 @@ int main(int argc, char const *argv[]) {
     for (; i >= 0; i--,number++) {
         // Animation progress percentage
         const float percentage = (i/(float)frames)*2.0;
-        cout << "\n\nFrame "<<number+1<<"/"<<frames<<" ["<<number/(float)frames*100.0 << "%]\nAnimating:"<<percentage*100;
+        cout << "\n\nFrame "<<number+1<<"/"<<frames+1<<" ["<<number/(float)frames*100.0 << "%]\nAnimating:"<<percentage*100;
 
         string filename ("render/animation/render_"+padStart('0',pad,to_string(number))+".ppm");
         cout << "\n'" << filename << "'\n";
