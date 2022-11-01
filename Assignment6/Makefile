@@ -1,14 +1,14 @@
 # openrender: render/result.png
 # 	(xdg-open render/result.png | open render/result.png)
-FLAGS = -Wall -std=c++17 -pthread
+FLAGS = -O3 -fopenmp
 # Framerate of the exported animation
 FPS = 7
 
 # Recipes for rendering the still frame
 render/result.png: main.out render/
-	./main.out render/result.ppm && ffmpeg -y -i "render/result.ppm" "render/result.png"
+	./main.out render/result.ppm && convert "render/result.ppm" "render/result.png"
 main.out: src/main.cpp src/renderer.h
-	g++ src/main.cpp src/renderer.h $(FLAGS) -o main.out
+	g++ $(FLAGS) src/main.cpp src/renderer.h -o main.out
 
 # Removes all generated files
 clean:

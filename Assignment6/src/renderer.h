@@ -8,6 +8,8 @@
 #include <ctime>
 #include <vector>
 #include <algorithm>
+#include <omp.h>
+#include <chrono>
 #include "glm/glm.hpp"
 #include "glm/gtx/transform.hpp"
 #include "glm/gtx/string_cast.hpp"
@@ -15,7 +17,7 @@
 #include <string>
 #include "Image.h"
 #include "Material.h"
-#include "BS_thread_pool.hpp"
+// #include "BS_thread_pool.hpp"
 
 using namespace std;
 
@@ -371,7 +373,28 @@ Hit closest_intersection(Ray ray) {
     return closest_hit;
 }
 
-/** Function for computing color of an object according to the Phong Model
+/**
+ * @brief Returns true if there is an occluding object before a given distance from the start point along the direction.
+ * 
+ * @param point the start point of the ray/
+ * @param direction the direction of the ray.
+ * @param distance the distance to check for occlusion.
+ * @return true 
+ * @return false 
+ */
+bool is_shadowed(glm::vec3 point, glm::vec3 direction, const float distance) {
+    // origin of the shadow ray is moved a little to avoid self intersection
+    Ray shadowRay = Ray(point + 0.001f * direction, direction);
+    for (Object *object : objects) {
+        Hit hit = object->intersect(shadowRay);
+        if (hit.hit && hit.distance <= distance) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** Function for computing color of an object according to the Phong Model and reflection/refraction.
  @param point A point belonging to the object for which the color is computed
  @param normal A normal vector the the point
  @param uv Texture coordinates
@@ -379,94 +402,82 @@ Hit closest_intersection(Ray ray) {
  @param material A material structure representing the material of the object
  @param maxBounces compute reflection rays for a maximum amount of levels. Limits recursive calls.
 */
-glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 view_direction, Material material, const int maxBounces){
+glm::vec3 IlluminationModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 view_direction, const Material &material, const int maxBounces){
 
 	glm::vec3 color(0.0);
 
     for(Light* light : lights) {
         glm::vec3 l = glm::normalize(light->position - point); // direction from the point to the light source
 
-        // Shadow
-        // origin of the shadow ray is moved a little to avoid self intersection
+        // Shadows
         const float distance_from_light = glm::distance(point, light->position);
-        Ray shadowRay = Ray(point + 0.001f * l, l);
-        Hit shadowHit = Hit();
-        for (Object *object : objects) {
-            Hit hit = object->intersect(shadowRay);
-            if (hit.hit && hit.distance <= distance_from_light) {
-                shadowHit = hit;
-                break;
+        // If the shadow ray hits an object, the point is in shadow and we don/t compute ambient/diffuse.
+        if (!is_shadowed(point, l, distance_from_light)) {
+            // If there is a texture, takes the diffuse color of the texture instead.
+            glm::vec3 diffuse_color = material.texture != NULL ? material.texture(uv) : material.diffuse;
+
+            const float diffuse = max(0.0f, glm::dot(l, normal));
+
+            glm::vec3 h = glm::normalize(l + view_direction); // half vector
+            const float specular = max(0.0f, glm::pow(glm::dot(h,normal), 4*material.shininess));
+
+            // Attenuation
+            const float distance = max(0.1f, distance_from_light);
+            const float attenuation = 1/ glm::pow(distance, 2);
+            //
+            color += attenuation * light->color * (diffuse_color*diffuse + material.specular*specular);
+        }
+    }
+
+    // Limit reflection and refraction bounces to avoid infinite recursion.
+    if (maxBounces > 0) {
+        
+        // Reflection
+        glm::vec3 reflection(0.0f);
+        if (material.reflectivity > 0) {
+            glm::vec3 reflection_direction = glm::reflect(-view_direction, normal);
+            Ray reflection_ray = Ray(point + 0.001f * reflection_direction, reflection_direction);
+            Hit closest_hit = closest_intersection(reflection_ray);
+            if (closest_hit.hit) {
+                reflection = material.reflectivity*IlluminationModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-reflection_direction), closest_hit.object->getMaterial(), maxBounces-1);
             }
         }
-        // If the shadow ray hits an object, the point is in shadow and we don/t compute ambient/diffuse.
-        if (shadowHit.hit) {
-            continue;
+
+        // Refraction
+        glm::vec3 refraction(0.0f);
+        if (material.refractivity > 0) {
+            const bool is_entering = glm::dot(normal, -view_direction) < 0.0f;
+            /* TODO:    We assume that one of the two materials is air, whether we are entering or exiting.
+                        How would we compute a glass sphere submerged in water ? */
+            const float n1 = is_entering ? 1.0f : material.refraction_index;
+            const float n2 = is_entering ? material.refraction_index : 1.0f;
+            const float eta = n1/n2;
+            glm::vec3 refraction_direction = glm::refract(-view_direction, is_entering ? normal : -normal, eta);
+            Ray refraction_ray = Ray(point + 0.001f * refraction_direction, refraction_direction);
+
+            Hit closest_hit = closest_intersection(refraction_ray);
+            if (closest_hit.hit) {
+                refraction = material.refractivity*IlluminationModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-refraction_direction), closest_hit.object->getMaterial(), maxBounces-1);
+                // Fresnel effect
+                float O1 = cos(glm::angle(normal, view_direction));
+                float O2 = cos(glm::angle(-normal, refraction_direction));
+
+                float R = 0.5*pow((n1*O1 - n2*O2)/(n1*O1 + n2*O2), 2) + pow((n1*O2 - n2*O1)/(n1*O2 + n2*O1), 2);
+                float T = 1-R;
+
+                reflection *= R;
+                refraction *= T;
+            }
         }
-
-		// If there is a texture, takes the diffuse color of the texture instead.
-		glm::vec3 diffuse_color = material.texture != NULL ? material.texture(uv) : material.diffuse;
-
-        const float diffuse = max(0.0f, glm::dot(l, normal));
-
-        glm::vec3 h = glm::normalize(l + view_direction); // half vector
-        const float specular = max(0.0f, glm::pow(glm::dot(h,normal), 4*material.shininess));
-
-		// Attenuation
-		const float distance = max(0.1f, distance_from_light);
-		const float attenuation = 1/ glm::pow(distance, 2);
-		//
-        color += attenuation * light->color * (diffuse_color*diffuse + material.specular*specular);
-    }
-
-    // Recursively computes Phong for reflected ray(s)
-    // Blends color of material with color of reflection based on reflectivity
-    glm::vec3 reflection(0.0f);
-    if (material.reflectivity > 0 && maxBounces > 0) {
-        color = (1.0f-material.reflectivity)*color;
-        glm::vec3 reflection_direction = glm::reflect(-view_direction, normal);
-        Ray reflection_ray = Ray(point + 0.001f * reflection_direction, reflection_direction);
-        Hit closest_hit = closest_intersection(reflection_ray);
-        if (closest_hit.hit) {
-            reflection = material.reflectivity*PhongModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-reflection_direction), closest_hit.object->getMaterial(), maxBounces-1);
-        }
-    }
-
-
-    // Refraction
-    glm::vec3 refraction(0.0f);
-    if (material.refractivity > 0 && maxBounces > 0) {
-        color = (1.0f-material.refractivity)*color;
-        const bool is_entering = glm::dot(normal, -view_direction) < 0.0f;
-        /* TODO:    We assume that one of the two materials is air, whether we are entering or exiting.
-                    How would we compute a glass sphere submerged in water ? */
-        const float transitioning_material = 1.0f;
-        const float eta = is_entering ? transitioning_material/material.refraction_index : material.refraction_index/transitioning_material;
-        glm::vec3 refraction_direction = glm::refract(-view_direction, is_entering ? normal : -normal, eta);
-        Ray refraction_ray = Ray(point + 0.001f * refraction_direction, refraction_direction);
-
-        Hit closest_hit = closest_intersection(refraction_ray);
-        if (closest_hit.hit) {
-            refraction = material.refractivity*PhongModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-refraction_direction), closest_hit.object->getMaterial(), maxBounces-1);
-            // fresnel coefficients
-            float n1 = 1.0f;
-            float n2 = 1.5f;
-            float O1 = cos(glm::angle(normal, view_direction));
-            float O2 = cos(glm::angle(-normal, refraction_direction));
-
-            float R = 0.5*pow((n1*O1 - n2*O2)/(n1*O1 + n2*O2), 2) + pow((n1*O2 - n2*O1)/(n1*O2 + n2*O1), 2);
-            float T = 1-R;
-
-            color += (R*reflection + T*refraction);
-        }
-    } else {
-        color += reflection;
-    }
-
+        color += reflection + refraction;
+    }   
 
     color += ambient_light*material.ambient;
 
-	// The final color has to be clamped so the values do not go beyond 0 and 1.
-	return glm::clamp(color, glm::vec3(0.0), glm::vec3(1.0));
+    // This is no more the final color since we recur call IlluminationModel for reflection and refraction.
+    // Therefore, the color should not be clamped to 0 and 1.
+    // The final color is clampled only for display. See the trace_ray function.
+	return color; 
 }
 
 
@@ -482,10 +493,10 @@ glm::vec3 trace_ray(Ray ray) {
 	glm::vec3 color(0.0);
 
 	if (closest_hit.hit) {
-        color = PhongModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-ray.direction), closest_hit.object->getMaterial(), 5);
+        color = IlluminationModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-ray.direction), closest_hit.object->getMaterial(), 5);
 	}
-
-	return color;
+    // clamp the final color to [0,1]
+	return  glm::clamp(color, glm::vec3(0.0), glm::vec3(1.0));
 }
 
 /**
@@ -621,9 +632,9 @@ struct Scene sceneDefinition() {
     objects.push_back(cone2);
 
     // lights
-    lights.push_back(new Light(glm::vec3(0.0, 26.0, 5.0), glm::vec3(50.0)));
-    lights.push_back(new Light(glm::vec3(0.0, 3.0, 12.0), glm::vec3(30.0)));
-    lights.push_back(new Light(glm::vec3(0.0, 5.0, 1.0), glm::vec3(35.0)));
+    lights.push_back(new Light(glm::vec3(0.0, 26.0, 5.0), glm::vec3(30.0)));
+    lights.push_back(new Light(glm::vec3(0.0, 3.0, 12.0), glm::vec3(20.0)));
+    lights.push_back(new Light(glm::vec3(0.0, 5.0, 1.0), glm::vec3(25.0)));
 
     struct Scene newscene;
     newscene.objects = objects;
@@ -638,7 +649,7 @@ struct Scene sceneDefinition() {
  @param intensity Input intensity.
  @return Tonemapped intensity in range (0,1)
  */
-glm::vec3 toneMapping(glm::vec3 intensity){
+glm::vec3 toneMapping(const glm::vec3 &intensity){
 	// Tonemapping parameters
 	const float alpha = 1.2f;
 	const float beta = 1.8f;
@@ -658,17 +669,11 @@ glm::vec3 toneMapping(glm::vec3 intensity){
  * @param threads the amount of system threads to use. Defaults to the maximum available.
  * @return int the exit status.
  */
-int render(struct Scene renderScene, string filename, const int threads=std::thread::hardware_concurrency()) {
-    BS::timer tmr; // variable for keeping the time of the rendering
-    tmr.start(); 
+int render(const struct Scene &renderScene, string filename) {
 
-    // int width = 960; //width of the image
-    // int height = 540; // height of the image
-    
-    // Tread pool creation
-    BS::thread_pool pool(threads);
-    cout << "Running on " << pool.get_thread_count() << " threads\n";
-    //
+    chrono::high_resolution_clock::time_point start = chrono::high_resolution_clock::now();
+
+    cout << "Running on " << omp_get_max_threads() << " threads\n";
 
     int width = 1920; //width of the image
     int height = 1080; // height of the image
@@ -687,14 +692,26 @@ int render(struct Scene renderScene, string filename, const int threads=std::thr
     const float Z = 1;
     glm::vec3 origin = glm::vec3(0.0, 0.0, 0.0); // origin of the camera
 
-    // Loop over all pixels and traverse the rays through the scene
-    for (int i = 0; i < width ; i++) {
-        // Print progress
-        // if (i % 10 == 0) {
-        //     cout << "Rendering: " << round((float)i/width*10000)/100 << "%\r" << flush;
-        // }
-        for (int j = 0; j < height ; j++) {
-            pool.push_task([](float i, float j, float s, float X, float Y, float Z, glm::vec3 origin, Image *image ) {
+    // Define tiles for parallelization
+    // Tiles are a good way to parallelize ray tracing since we can expect that rays in the same tile will behave similarly (i.e. they will hit the same objects).
+    const int tile_size = 16;
+    const int tiles_x = (width + tile_size - 1) / tile_size; // add one tile if width is not a multiple of tile_size
+    const int tiles_y = (height + tile_size - 1) / tile_size; // add one tile if height is not a multiple of tile_size
+    const int tile_count = tiles_x * tiles_y;
+
+    // Loop over all tiles and traverse the rays through the scene
+    #pragma omp parallel for schedule(dynamic, 1)
+    for (int tile = 0; tile < tile_count; tile++) {
+        const int tile_j = tile / tiles_x; // the tile column number
+        const int tile_i = tile - tile_j * tiles_x; // the tile row number
+        const int tile_i_start = tile_i * tile_size; // the x coordinate of the tile 
+        const int tile_j_start = tile_j * tile_size; // the y coordinate of the tile
+        const int tile_i_end = min(tile_i_start + tile_size, width); // the x coordinate of the tile + tile_size
+        const int tile_j_end = min(tile_j_start + tile_size, height); // the y coordinate of the tile + tile_size
+
+        // Loop over all pixels in the tile
+        for (int i = tile_i_start; i < tile_i_end ; i++) {
+            for (int j = tile_j_start; j < tile_j_end; j++) {
                 // X coordinate of the current pixel
                 const float dx = X + i*s + 0.5*s;
                 // Y coordinate of the current pixel
@@ -705,17 +722,16 @@ int render(struct Scene renderScene, string filename, const int threads=std::thr
                 // create the ray
                 Ray ray(origin, direction);
                 // trace the ray and set the color of the pixel
-                image->setPixel(i, j, toneMapping(trace_ray(ray)));
-                image->setPixel(i, j, toneMapping(trace_ray(ray)));
-
-            },i, j, s, X, Y, Z, origin, &image );
+                image.setPixel(i, j, toneMapping(trace_ray(ray)));
+                image.setPixel(i, j, toneMapping(trace_ray(ray)));
+            }
         }
     }
 
-    pool.wait_for_tasks();
-    tmr.stop(); // Stops the timer
+    chrono::high_resolution_clock::time_point end = chrono::high_resolution_clock::now();
+    chrono::duration<double> time_span = chrono::duration_cast<chrono::duration<double>>(end - start);
 
-    cout<<"It took " << tmr.ms()/1000 << " seconds to render the image."<< endl;
+    cout<<"It took " << time_span.count() << " seconds to render the image."<< endl;
     // cout<<"I could render at "<< (float)CLOCKS_PER_SEC/((float)t) << " frames per second."<<endl;
 
     // Writing the final results of the rendering
