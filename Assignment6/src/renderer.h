@@ -11,6 +11,7 @@
 #include "glm/glm.hpp"
 #include "glm/gtx/transform.hpp"
 #include "glm/gtx/string_cast.hpp"
+#include "glm/gtx/vector_angle.hpp"
 #include <string>
 #include "Image.h"
 #include "Material.h"
@@ -26,7 +27,7 @@ public:
     glm::vec3 origin; ///< Origin of the ray
     glm::vec3 direction; ///< Direction of the ray
 	/**
-	 Contructor of the ray
+	 Constructor of the ray
 	 @param origin Origin of the ray
 	 @param direction Direction of the ray
 	 */
@@ -300,7 +301,7 @@ public:
         Hit baseHit = base.intersect(localRay);
 
         // Check for intersections on the rounded base of the cone
-        if (baseHit.hit && baseHit.distance < closest_t || (hit.intersection.y < 0 || hit.intersection.y > height)) {
+        if (baseHit.hit && (baseHit.distance < closest_t || (hit.intersection.y < 0 || hit.intersection.y > height))) {
             float distance = glm::distance(baseHit.intersection, O);
             if (distance <= radius) {
                 return toGlobalHit(baseHit, ray);
@@ -382,7 +383,6 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
 
 	glm::vec3 color(0.0);
 
-
     for(Light* light : lights) {
         glm::vec3 l = glm::normalize(light->position - point); // direction from the point to the light source
 
@@ -410,7 +410,7 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
 
         glm::vec3 h = glm::normalize(l + view_direction); // half vector
         const float specular = max(0.0f, glm::pow(glm::dot(h,normal), 4*material.shininess));
-		
+
 		// Attenuation
 		const float distance = max(0.1f, distance_from_light);
 		const float attenuation = 1/ glm::pow(distance, 2);
@@ -420,18 +420,20 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
 
     // Recursively computes Phong for reflected ray(s)
     // Blends color of material with color of reflection based on reflectivity
+    glm::vec3 reflection(0.0f);
     if (material.reflectivity > 0 && maxBounces > 0) {
         color = (1.0f-material.reflectivity)*color;
         glm::vec3 reflection_direction = glm::reflect(-view_direction, normal);
         Ray reflection_ray = Ray(point + 0.001f * reflection_direction, reflection_direction);
         Hit closest_hit = closest_intersection(reflection_ray);
         if (closest_hit.hit) {
-            color += material.reflectivity*PhongModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-reflection_direction), closest_hit.object->getMaterial(), maxBounces-1);
+            reflection = material.reflectivity*PhongModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-reflection_direction), closest_hit.object->getMaterial(), maxBounces-1);
         }
     }
 
 
     // Refraction
+    glm::vec3 refraction(0.0f);
     if (material.refractivity > 0 && maxBounces > 0) {
         color = (1.0f-material.refractivity)*color;
         const bool is_entering = glm::dot(normal, -view_direction) < 0.0f;
@@ -444,9 +446,22 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 
 
         Hit closest_hit = closest_intersection(refraction_ray);
         if (closest_hit.hit) {
-            color += material.refractivity*PhongModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-refraction_direction), closest_hit.object->getMaterial(), maxBounces-1);
+            refraction = material.refractivity*PhongModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-refraction_direction), closest_hit.object->getMaterial(), maxBounces-1);
+            // fresnel coefficients
+            float n1 = 1.0f;
+            float n2 = 1.5f;
+            float O1 = cos(glm::angle(normal, view_direction));
+            float O2 = cos(glm::angle(-normal, refraction_direction));
+
+            float R = 0.5*pow((n1*O1 - n2*O2)/(n1*O1 + n2*O2), 2) + pow((n1*O2 - n2*O1)/(n1*O2 + n2*O1), 2);
+            float T = 1-R;
+
+            color += (R*reflection + T*refraction);
         }
+    } else {
+        color += reflection;
     }
+
 
     color += ambient_light*material.ambient;
 
@@ -467,7 +482,7 @@ glm::vec3 trace_ray(Ray ray) {
 	glm::vec3 color(0.0);
 
 	if (closest_hit.hit) {
-        color = PhongModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-ray.direction), closest_hit.object->getMaterial(), 8);
+        color = PhongModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-ray.direction), closest_hit.object->getMaterial(), 5);
 	}
 
 	return color;
@@ -531,6 +546,7 @@ struct Scene sceneDefinition() {
 
     Material refractive;
     refractive.refractivity = 1.0f;
+    refractive.reflectivity = 1.0f;
     refractive.refraction_index = 2.0f;
 
 
@@ -549,8 +565,6 @@ struct Scene sceneDefinition() {
     // objects.push_back(sp3);
 
     // textured spheres
-//    objects.push_back(new Sphere(7.0, glm::vec3(-6,4,23), checkerboard));
-//    objects.push_back(new Sphere(5.0, glm::vec3(7,3,23), rainbow));
 
     glm::mat4 sp4_t = genTRMat(glm::vec3(-6,4,23),glm::vec3(0.0),glm::vec3(7.0f));
     Sphere *sp4 = new Sphere(checkerboard, sp4_t);
@@ -559,10 +573,10 @@ struct Scene sceneDefinition() {
 
     objects.push_back(sp4);
     objects.push_back(sp5);
-
-    glm::mat4 sp6_t = genTRMat(glm::vec3(0.0, 27.0, 0.0),glm::vec3(0.0),glm::vec3(1.0f));
-    Plane *sp6 = new Plane(blue,sp6_t);
-    objects.push_back(sp6);
+//
+//    glm::mat4 sp6_t = genTRMat(glm::vec3(0.0, 27.0, 0.0),glm::vec3(0.0),glm::vec3(1.0f));
+//    Plane *sp6 = new Plane(blue,sp6_t);
+//    objects.push_back(sp6);
 
     glm::mat4 sp7_t = genTRMat(glm::vec3(-3.0, -1.0, 8.0),glm::vec3(0.0),glm::vec3(2.0f));
     Sphere *sp7 = new Sphere(refractive,sp7_t);
@@ -692,6 +706,8 @@ int render(struct Scene renderScene, string filename, const int threads=std::thr
                 Ray ray(origin, direction);
                 // trace the ray and set the color of the pixel
                 image->setPixel(i, j, toneMapping(trace_ray(ray)));
+                image->setPixel(i, j, toneMapping(trace_ray(ray)));
+
             },i, j, s, X, Y, Z, origin, &image );
         }
     }
