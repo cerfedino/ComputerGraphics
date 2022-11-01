@@ -77,6 +77,7 @@ int main(int argc, char const *argv[]) {
         cout << "\n\nFrame "<<number+1<<"/"<<frames<<" ["<<number/(float)frames*100.0 << "%]\nAnimating:"<<percentage*100;
 
         string filename ("render/animation/render_"+padStart('0',pad,to_string(number))+".ppm");
+        cout << "\n'" << filename << "'\n";
         render(transform(percentage, scene), filename);
     }
 }
