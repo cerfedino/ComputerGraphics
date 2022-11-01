@@ -43,21 +43,23 @@ string padStart(char pad, int number, string str) {
 }
 
 int main(int argc, char const *argv[]) {
-    const int frames = 120;
+    const int frames = 16;
     // Sets the pad length based on the digits of 'frames'
     const int pad = log10(frames)+1;
 
     struct Scene scene = sceneDefinition();
-    // Total number of rendered images
-    int number = 0;
+    // Total number of rendered images. Used for naming the output frames.
+    int number = 0 ;
+    // Current index of rendered image
+    int i = number;
 
-    int i;
-    for (i = 0; i < frames/2; i++,number++) {
+    for (; i < frames/2; i++,number++) {
         // Animation progress percentage
         const float percentage = (i/(float)frames)*2.0;
-        cout << endl << number/(float)frames*100.0 << "%\nAnimating:"<<percentage*100 << endl;
+        cout << endl << number/(float)frames*100.0 << "%\nAnimating:"<<percentage*100;
 
         string filename ("render/animation/render_"+padStart('0',pad,to_string(number))+".ppm");
+        cout << "\n'" << filename << "'\n";
         render(transform(percentage, scene), filename);
     }
     for (; i >= 0; i--,number++) {

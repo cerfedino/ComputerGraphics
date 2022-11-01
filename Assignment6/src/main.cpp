@@ -9,5 +9,5 @@ int main(int argc, char const *argv[]) {
     } else {
         filename = string("");
     }
-    return render(scene, filename);
+    return render(scene, filename,1);
 }

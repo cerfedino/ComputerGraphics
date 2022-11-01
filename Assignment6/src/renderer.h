@@ -14,6 +14,7 @@
 #include <string>
 #include "Image.h"
 #include "Material.h"
+#include "BS_thread_pool.hpp"
 
 using namespace std;
 
@@ -636,16 +637,24 @@ glm::vec3 toneMapping(glm::vec3 intensity){
 
 /**
  * Renders a Scene and outputs the result into a file.
+ * Uses a thread pool to compute individual pixels concurrently.
  * 
  * @param renderScene the Scene to render.
  * @param filename the output file filename.
+ * @param threads the amount of system threads to use. Defaults to the maximum available.
  * @return int the exit status.
  */
-int render(struct Scene renderScene, string filename) {
-    clock_t t = clock(); // variable for keeping the time of the rendering
+int render(struct Scene renderScene, string filename, const int threads=std::thread::hardware_concurrency()) {
+    BS::timer tmr; // variable for keeping the time of the rendering
+    tmr.start(); 
 
     // int width = 960; //width of the image
     // int height = 540; // height of the image
+    
+    // Tread pool creation
+    BS::thread_pool pool(threads);
+    cout << "Running on " << pool.get_thread_count() << " threads\n";
+    //
 
     int width = 1920; //width of the image
     int height = 1080; // height of the image
@@ -667,27 +676,31 @@ int render(struct Scene renderScene, string filename) {
     // Loop over all pixels and traverse the rays through the scene
     for (int i = 0; i < width ; i++) {
         // Print progress
-        if (i % 10 == 0) {
-            cout << "Rendering: " << round((float)i/width*10000)/100 << "%\r" << flush;
-        }
+        // if (i % 10 == 0) {
+        //     cout << "Rendering: " << round((float)i/width*10000)/100 << "%\r" << flush;
+        // }
         for (int j = 0; j < height ; j++) {
+            pool.push_task([](float i, float j, float s, float X, float Y, float Z, glm::vec3 origin, Image *image ) {
+                // X coordinate of the current pixel
+                const float dx = X + i*s + 0.5*s;
+                // Y coordinate of the current pixel
+                const float dy = Y - j*s - 0.5*s;
 
-            // X coordinate of the current pixel
-            const float dx = X + i*s + 0.5*s;
-            // Y coordinate of the current pixel
-            const float dy = Y - j*s - 0.5*s;
-
-            // direction of the ray
-            glm::vec3 direction = glm::normalize(glm::vec3(dx, dy, Z));
-            // create the ray
-            Ray ray(origin, direction);
-            // trace the ray and set the color of the pixel
-            image.setPixel(i, j, toneMapping(trace_ray(ray)));
+                // direction of the ray
+                glm::vec3 direction = glm::normalize(glm::vec3(dx, dy, Z));
+                // create the ray
+                Ray ray(origin, direction);
+                // trace the ray and set the color of the pixel
+                image->setPixel(i, j, toneMapping(trace_ray(ray)));
+            },i, j, s, X, Y, Z, origin, &image );
         }
     }
-    t = clock() - t;
-    cout<<"It took " << ((float)t)/CLOCKS_PER_SEC<< " seconds to render the image."<< endl;
-    cout<<"I could render at "<< (float)CLOCKS_PER_SEC/((float)t) << " frames per second."<<endl;
+
+    pool.wait_for_tasks();
+    tmr.stop(); // Stops the timer
+
+    cout<<"It took " << tmr.ms()/1000 << " seconds to render the image."<< endl;
+    // cout<<"I could render at "<< (float)CLOCKS_PER_SEC/((float)t) << " frames per second."<<endl;
 
     // Writing the final results of the rendering
     cout << "Saving render to file '"<< filename << "'\n";
