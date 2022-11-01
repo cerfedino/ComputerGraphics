@@ -42,8 +42,17 @@ string padStart(char pad, int number, string str) {
     return std::string(number - min(number, int(str.length())), pad) + str;
 }
 
+/**
+ * Renders the animation
+ * 
+ * @param argv The first parameter that can be passed is the framerate. Used for defining the amount of frames to render.
+ * @return int 
+ */
 int main(int argc, char const *argv[]) {
-    const int frames = 16;
+    const float seconds = 2.0;
+    // The amount of frames to render. Involves, if specified, the framerate.
+    const int frames = argc == 2 ? seconds*atoi(argv[1]) : 15;
+
     // Sets the pad length based on the digits of 'frames'
     const int pad = log10(frames)+1;
 
@@ -56,7 +65,7 @@ int main(int argc, char const *argv[]) {
     for (; i < frames/2; i++,number++) {
         // Animation progress percentage
         const float percentage = (i/(float)frames)*2.0;
-        cout << endl << number/(float)frames*100.0 << "%\nAnimating:"<<percentage*100;
+        cout << "\n\nFrame "<<number+1<<"/"<<frames<<" ["<<number/(float)frames*100.0 << "%]\nAnimating:"<<percentage*100;
 
         string filename ("render/animation/render_"+padStart('0',pad,to_string(number))+".ppm");
         cout << "\n'" << filename << "'\n";
@@ -65,7 +74,7 @@ int main(int argc, char const *argv[]) {
     for (; i >= 0; i--,number++) {
         // Animation progress percentage
         const float percentage = (i/(float)frames)*2.0;
-        cout << endl << number/(float)frames*100.0 << "%\nAnimating:"<<percentage*100 << endl;
+        cout << "\n\nFrame "<<number+1<<"/"<<frames<<" ["<<number/(float)frames*100.0 << "%]\nAnimating:"<<percentage*100;
 
         string filename ("render/animation/render_"+padStart('0',pad,to_string(number))+".ppm");
         render(transform(percentage, scene), filename);

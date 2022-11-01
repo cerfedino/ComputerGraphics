@@ -1,6 +1,8 @@
 # openrender: render/result.png
 # 	(xdg-open render/result.png | open render/result.png)
 FLAGS = -Wall -std=c++17 -pthread
+# Framerate of the exported animation
+FPS = 7
 
 # Recipes for rendering the still frame
 render/result.png: main.out render/
@@ -18,10 +20,10 @@ all: render/result.png animation
 # Recipes for rendering the animation
 animation: render/result.gif
 render/result.gif: render/result.mp4
-	ffmpeg -y -framerate 30 -pattern_type glob -i 'render/animation/*.ppm' -loop 0 render/result.gif
+	ffmpeg -y -framerate $(FPS) -pattern_type glob -i 'render/animation/*.ppm' -loop 0 render/result.gif
 render/result.mp4: animation.out render/animation/
 	rm -r render/animation/* &> /dev/null
-	./animation.out && ffmpeg -y -framerate 30 -pattern_type glob -i 'render/animation/*.ppm' -c:v libx264 -pix_fmt yuv420p render/result.mp4
+	./animation.out $(FPS) && ffmpeg -y -framerate $(FPS) -pattern_type glob -i 'render/animation/*.ppm' -c:v libx264 -pix_fmt yuv420p render/result.mp4
 animation.out: src/animation.cpp src/renderer.h
 	g++ src/animation.cpp src/renderer.h $(FLAGS) -o animation.out
 
