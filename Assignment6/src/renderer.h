@@ -723,7 +723,6 @@ int render(const struct Scene &renderScene, string filename) {
                 Ray ray(origin, direction);
                 // trace the ray and set the color of the pixel
                 image.setPixel(i, j, toneMapping(trace_ray(ray)));
-                image.setPixel(i, j, toneMapping(trace_ray(ray)));
             }
         }
     }
