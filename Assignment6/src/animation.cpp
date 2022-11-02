@@ -51,7 +51,7 @@ void bounce_ball1(float percentage, struct Scene* scene) {
                                                           ball1_initial_rotation + ball1_rotation,
                                                           ball1_initial_scale + ball1_scale);
 
-    scene->objects.at(5)->setTransformation(ball1_final_transformation);
+    scene->objects.at(4)->setTransformation(ball1_final_transformation);
 
 }
 
@@ -121,7 +121,7 @@ int main(int argc, char const *argv[]) {
         bounce_ball1(percentage, &scene);
         bounce_ball2(percentage, &scene);
         scene.objects.at(2)->setTransformation(genTRMat(glm::vec3(-6,4,23),glm::vec3(0.0, 360.0, 0.0)*(number/(float)frames),glm::vec3(7.0f)));
-        scene.objects.at(11)->setTransformation(genTRMat(glm::vec3(3.0*(number/(float)frames), 0.0, 30.0),glm::vec3(-90.0, 0, 0),glm::vec3(1.0f)));
+        scene.objects.at(10)->setTransformation(genTRMat(glm::vec3(3.0*(number/(float)frames), 0.0, 30.0),glm::vec3(-90.0, 0, 0),glm::vec3(1.0f)));
         render(scene, filename);
     }
     for (; i >= 0; i--,number++) {
@@ -134,7 +134,7 @@ int main(int argc, char const *argv[]) {
         bounce_ball1(percentage, &scene);
         bounce_ball2(percentage, &scene);
         scene.objects.at(2)->setTransformation(genTRMat(glm::vec3(-6,4,23),glm::vec3(0.0, 360.0, 0.0)*(number/(float)frames),glm::vec3(7.0f)));
-        scene.objects.at(11)->setTransformation(genTRMat(glm::vec3(3.0*(number/(float)frames), 0.0, 30.0),glm::vec3(-90.0, 0, 0),glm::vec3(1.0f)));
+        scene.objects.at(10)->setTransformation(genTRMat(glm::vec3(3.0*(number/(float)frames), 0.0, 30.0),glm::vec3(-90.0, 0, 0),glm::vec3(1.0f)));
         render(scene, filename);
     }
 }
