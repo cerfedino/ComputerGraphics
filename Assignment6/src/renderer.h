@@ -381,7 +381,12 @@ Hit closest_intersection(Ray ray) {
  * @return true 
  * @return false 
  */
-bool is_shadowed(glm::vec3 point, glm::vec3 direction, const float distance) {
+bool is_shadowed(glm::vec3 point, glm::vec3 normal, glm::vec3 direction, const float distance) {
+    // avoid sending shadow rays towards lights behind the surface
+    if (glm::dot(normal, direction) < 0) {
+        return true;
+    }
+
     // origin of the shadow ray is moved a little to avoid self intersection
     Ray shadowRay = Ray(point + 0.001f * direction, direction);
     for (Object *object : objects) {
@@ -411,7 +416,7 @@ glm::vec3 IlluminationModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm
         // Shadows
         const float distance_from_light = glm::distance(point, light->position);
         // If the shadow ray hits an object, the point is in shadow and we don/t compute ambient/diffuse.
-        if (!is_shadowed(point, l, distance_from_light)) {
+        if (!is_shadowed(point, normal, l, distance_from_light)) {
             // If there is a texture, takes the diffuse color of the texture instead.
             glm::vec3 diffuse_color = material.texture != NULL ? material.texture(uv) : material.diffuse;
 
