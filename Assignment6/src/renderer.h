@@ -17,7 +17,6 @@
 #include <string>
 #include "Image.h"
 #include "Material.h"
-// #include "BS_thread_pool.hpp"
 
 using namespace std;
 
@@ -435,6 +434,7 @@ glm::vec3 IlluminationModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm
         // Reflection
         glm::vec3 reflection(0.0f);
         if (material.reflectivity > 0) {
+            color *= 1 - material.reflectivity;
             glm::vec3 reflection_direction = glm::reflect(-view_direction, normal);
             Ray reflection_ray = Ray(point + 0.001f * reflection_direction, reflection_direction);
             Hit closest_hit = closest_intersection(reflection_ray);
@@ -446,6 +446,7 @@ glm::vec3 IlluminationModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm
         // Refraction
         glm::vec3 refraction(0.0f);
         if (material.refractivity > 0) {
+            color *= (1 - material.refractivity);
             const bool is_entering = glm::dot(normal, -view_direction) < 0.0f;
             /* TODO:    We assume that one of the two materials is air, whether we are entering or exiting.
                         How would we compute a glass sphere submerged in water ? */
@@ -462,7 +463,7 @@ glm::vec3 IlluminationModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm
                 float O1 = cos(glm::angle(normal, view_direction));
                 float O2 = cos(glm::angle(-normal, refraction_direction));
 
-                float R = 0.5*pow((n1*O1 - n2*O2)/(n1*O1 + n2*O2), 2) + pow((n1*O2 - n2*O1)/(n1*O2 + n2*O1), 2);
+                float R = 0.5*(pow((n1*O1 - n2*O2)/(n1*O1 + n2*O2), 2) + pow((n1*O2 - n2*O1)/(n1*O2 + n2*O1), 2));
                 float T = 1-R;
 
                 reflection *= R;
@@ -476,7 +477,7 @@ glm::vec3 IlluminationModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm
 
     // This is no more the final color since we recur call IlluminationModel for reflection and refraction.
     // Therefore, the color should not be clamped to 0 and 1.
-    // The final color is clampled only for display. See the trace_ray function.
+    // The final color is clamped only for display. See the trace_ray function.
 	return color; 
 }
 
@@ -504,7 +505,7 @@ glm::vec3 trace_ray(Ray ray) {
  */
 struct Scene sceneDefinition() {
     vector<Light *> lights;
-    glm::vec3 ambient_light(1.7f);
+    glm::vec3 ambient_light(0.02f);
     vector<Object *> objects;
 
     // Materials -------------------------------------------------------------------------------------------------------
@@ -540,12 +541,17 @@ struct Scene sceneDefinition() {
 	white.specular = glm::vec3(0.5);
 	white.shininess = 10.0;
 
+    Material dark_blue;
+    dark_blue.ambient = glm::vec3(0.07f, 0.07f, 0.1f);
+    dark_blue.diffuse = glm::vec3(0.0f, 0.0f, 0.5f);
+    dark_blue.specular = glm::vec3(0.0);
+
     // Procedural textures
     Material checkerboard;
     checkerboard.texture = &checkerboardTexture;
 	checkerboard.ambient = glm::vec3(0.0f);
-	checkerboard.specular = glm::vec3(0.0);
-	checkerboard.shininess = 0.0;
+	checkerboard.specular = glm::vec3(1.0);
+	checkerboard.shininess = 100.0;
     checkerboard.reflectivity = 0.4f;
 
 
@@ -556,8 +562,10 @@ struct Scene sceneDefinition() {
 	rainbow.shininess = 10.0;
 
     Material refractive;
-    refractive.refractivity = 1.0f;
+    refractive.specular = glm::vec3(1.0);
+    refractive.shininess = 10.0;
     refractive.reflectivity = 1.0f;
+    refractive.refractivity = 1.0f;
     refractive.refraction_index = 2.0f;
 
 
@@ -599,8 +607,8 @@ struct Scene sceneDefinition() {
     Plane *p1 = new Plane(checkerboard,p1_t);
     objects.push_back(p1);
 
-    glm::mat4 p2_t = genTRMat(glm::vec3(0.0, 27.0, 0.0),glm::vec3(180.0),glm::vec3(1.0f));
-    Plane *p2 = new Plane(blue,p2_t);
+    glm::mat4 p2_t = genTRMat(glm::vec3(0.0, 27.0, 0.0),glm::vec3(180.0, 0, 0),glm::vec3(1.0f));
+    Plane *p2 = new Plane(dark_blue,p2_t);
     objects.push_back(p2);
 
     // x
@@ -632,9 +640,10 @@ struct Scene sceneDefinition() {
     objects.push_back(cone2);
 
     // lights
-    lights.push_back(new Light(glm::vec3(0.0, 26.0, 5.0), glm::vec3(30.0)));
-    lights.push_back(new Light(glm::vec3(0.0, 3.0, 12.0), glm::vec3(20.0)));
-    lights.push_back(new Light(glm::vec3(0.0, 5.0, 1.0), glm::vec3(25.0)));
+    lights.push_back(new Light(glm::vec3(0.0, 26.0, 5.0), glm::vec3(4.0)));
+    lights.push_back(new Light(glm::vec3(1.0, 3.0, 12.0), glm::vec3(2.0)));
+    lights.push_back(new Light(glm::vec3(0.0, 5.0, 2.0), glm::vec3(1.0)));
+//    lights.push_back(new Light(glm::vec3(0.0, 20.0, 16.0), glm::vec3(1.0)));
 
     struct Scene newscene;
     newscene.objects = objects;
@@ -651,8 +660,8 @@ struct Scene sceneDefinition() {
  */
 glm::vec3 toneMapping(const glm::vec3 &intensity){
 	// Tonemapping parameters
-	const float alpha = 1.2f;
-	const float beta = 1.8f;
+	const float alpha = 5.5f;
+	const float beta = 1.3f;
 	const float gamma = 1.8f;
 
 	const glm::vec3 tonemapped = alpha * glm::pow(glm::pow(intensity, glm::vec3(beta)), glm::vec3(1.0/gamma));
@@ -676,7 +685,7 @@ int render(const struct Scene &renderScene, string filename) {
     cout << "Running on " << omp_get_max_threads() << " threads\n";
 
     int width = 1920; //width of the image
-    int height = 1080; // height of the image
+    int height = 1440; // height of the image
 
     float fov = 90; // field of view
 
@@ -702,6 +711,13 @@ int render(const struct Scene &renderScene, string filename) {
     // Loop over all tiles and traverse the rays through the scene
     #pragma omp parallel for schedule(dynamic, 1)
     for (int tile = 0; tile < tile_count; tile++) {
+        // print thread 1 progress
+        if (omp_get_thread_num() == 0) {
+            cout << "Progress: " << ceil((float)tile / tile_count * 10000) / 100 << "%\r";
+            cout.flush();
+        }
+
+        // Compute the tile coordinates
         const int tile_j = tile / tiles_x; // the tile column number
         const int tile_i = tile - tile_j * tiles_x; // the tile row number
         const int tile_i_start = tile_i * tile_size; // the x coordinate of the tile 

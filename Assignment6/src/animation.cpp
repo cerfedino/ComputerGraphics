@@ -3,6 +3,8 @@
 #include <string>
 #include <algorithm>
 #include <cmath>
+#include <chrono>
+
 
 using namespace std;
 
@@ -111,30 +113,35 @@ int main(int argc, char const *argv[]) {
     // Current index of rendered image
     int i = number;
 
+    chrono::high_resolution_clock::time_point start = chrono::high_resolution_clock::now();
+
     for (; i < frames/2; i++,number++) {
         // Animation progress percentage
-        const float percentage = 1.0 - (i*i/(float)(frames*frames))*3.8;
-        cout << "\n\nFrame "<<number+1<<"/"<<frames+1<<" ["<<number/(float)frames*100.0 << "%]\nAnimating:"<<percentage*100;
+        const float quadraticPercent = 1.0 - (i*i/(float)(frames*frames))*3.8;
+        cout << "\n\nFrame "<<number+1<<"/"<<frames<<" ["<<number/(float)frames*100.0 << "%]\nAnimating:"<<quadraticPercent*100;
 
         string filename ("render/animation/render_"+padStart('0',pad,to_string(number))+".ppm");
         cout << "\n'" << filename << "'\n";
-        bounce_ball1(percentage, &scene);
-        bounce_ball2(percentage, &scene);
-        scene.objects.at(2)->setTransformation(genTRMat(glm::vec3(-6,4,23),glm::vec3(0.0, 360.0, 0.0)*(number/(float)frames),glm::vec3(7.0f)));
+        bounce_ball1(quadraticPercent, &scene);
+        bounce_ball2(quadraticPercent, &scene);
+        scene.objects.at(2)->setTransformation(genTRMat(glm::vec3(-6,4,23),glm::vec3(0.0, -180.0, 0.0)*(number/(float)frames),glm::vec3(7.0f)));
         // scene.objects.at(10)->setTransformation(genTRMat(glm::vec3(3.0*(number/(float)frames), 0.0, 30.0),glm::vec3(-90.0, 0, 0),glm::vec3(1.0f)));
         render(scene, filename);
     }
-    for (; i >= 0; i--,number++) {
+    for (; i > 0; i--,number++) {
         // Animation progress percentage
-        const float percentage = 1.0 -(i*i/(float)(frames*frames))*3.8;
-        cout << "\n\nFrame "<<number+1<<"/"<<frames+1<<" ["<<number/(float)frames*100.0 << "%]\nAnimating:"<<percentage*100;
+        const float quadraticPercent = 1.0 -(i*i/(float)(frames*frames))*3.8;
+        cout << "\n\nFrame "<<number+1<<"/"<<frames<<" ["<<number/(float)frames*100.0 << "%]\nAnimating:"<<quadraticPercent*100;
 
         string filename ("render/animation/render_"+padStart('0',pad,to_string(number))+".ppm");
         cout << "\n'" << filename << "'\n";
-        bounce_ball1(percentage, &scene);
-        bounce_ball2(percentage, &scene);
-        scene.objects.at(2)->setTransformation(genTRMat(glm::vec3(-6,4,23),glm::vec3(0.0, 360.0, 0.0)*(number/(float)frames),glm::vec3(7.0f)));
+        bounce_ball1(quadraticPercent, &scene);
+        bounce_ball2(quadraticPercent, &scene);
+        scene.objects.at(2)->setTransformation(genTRMat(glm::vec3(-6,4,23),glm::vec3(0.0, -180.0, 0.0)*(number/(float)frames),glm::vec3(7.0f)));
         // scene.objects.at(10)->setTransformation(genTRMat(glm::vec3(3.0*(number/(float)frames), 0.0, 30.0),glm::vec3(-90.0, 0, 0),glm::vec3(1.0f)));
         render(scene, filename);
     }
+
+    chrono::high_resolution_clock::time_point end = chrono::high_resolution_clock::now();
+    cout << "\n Rendered " << number << " frames in " << chrono::duration_cast<chrono::minutes>(end - start).count() << " minutes.\n";
 }

@@ -2,7 +2,7 @@
 # 	(xdg-open render/result.png | open render/result.png)
 FLAGS = -O3 -fopenmp
 # Framerate of the exported animation
-FPS = 7
+FPS = 25
 
 # Recipes for rendering the still frame
 render/result.png: main.out render/
@@ -20,7 +20,7 @@ all: render/result.png animation
 # Recipes for rendering the animation
 animation: render/result.gif
 render/result.gif: render/result.mp4
-	ffmpeg -y -framerate $(FPS) -pattern_type glob -i 'render/animation/*.ppm' -loop 0 render/result.gif
+	ffmpeg -y -framerate $(FPS) -pattern_type glob -i 'render/animation/*.ppm' -loop 0 -vf scale=800x600 render/result.gif
 render/result.mp4: animation.out render/animation/
 	rm -r render/animation/* &> /dev/null
 	./animation.out $(FPS) && ffmpeg -y -framerate $(FPS) -pattern_type glob -i 'render/animation/*.ppm' -c:v libx264 -pix_fmt yuv420p render/result.mp4

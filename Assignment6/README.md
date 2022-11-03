@@ -9,3 +9,5 @@
 - Exercise 1
 - Exercise 2
 - Exercise 3
+- Bonus exercise 4
+- Bonus exercise 5
