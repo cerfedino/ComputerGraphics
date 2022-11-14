@@ -1,66 +1,18 @@
-
-// ----------------- Assignment ------------------
-// Modify the vertex and the fragment shaders such that:
-// (1) The vertex shader accepts a new attribute a_color of type vec3
-// (2) The vertex shader copy the value of a_color to a new output variable v_color of type vec3
-// (3) The fragment shader accepts as an input the additional variable v_color and uses it to color the fragment
-//------------------------------------------------
-var vertexShaderCode =
-    `#version 300 es
-                in vec3 a_position;
-                in vec3 a_color;
-                out vec3 v_color;
-
-                uniform mat4 rotationMatrix;
-                void main(){
-                    gl_Position = rotationMatrix * vec4(a_position,1.0); // extra code for interactive rotation, it does need to be modified
-                    v_color = a_color;
-                }`;
-
-var fragmentShaderCode =
-    `#version 300 es
-                precision mediump float;
-
-                in vec3 v_color;
-                out vec4 out_color;
-                void main(){
-                    out_color = vec4(v_color,1.0);
-                    // out_color = vec4(0.0, 0.61, 0.87, 1.0);
-                }`;
-
-// vertices of our traingle
-var triangle_vertices = [
-    0.0, 0.5, 0.0,
-    -0.5, -0.5, 0.0,
-    0.5, -0.5, 0.0,
-];
-
-//---------------- Assignment -------------------
-// Define color for each vertex of a triangle.
-// The vertices should have different colors, e.g., reg, green, blue.
-// The colors within the triangle will be interpolated automaticaly.
-//----------------------------------------------
-var triangle_colors = [
-    1.0, 0.0, 0.0,
-    0.0, 1.0, 0.0,
-    0.0, 0.0, 1.0
-];
-
-
 var gl; // WebGL context
 var shaderProgram; // the GLSL program we will use for rendering
 var triangle_vao; // the vertex array object for the triangle
+var cube_vao; // the vertex array object for the cube
 
-// The function initilize the WebGL canvas
+// The function to initialize the WebGL canvas
 function initWebGL() {
     var canvas = document.getElementById("webgl-canvas");
     gl = canvas.getContext("webgl2");
 
-    //keep the size of the canvas for leter rendering
+    // Keep the size of the canvas for later rendering
     gl.viewportWidth = canvas.width;
     gl.viewportHeight = canvas.height;
 
-    //check for errors
+    // Check for errors
     if (gl) {
         console.log("WebGL succesfully initialized.");
     } else {
@@ -100,6 +52,28 @@ function linkProgram(program, vertShader, fragShader) {
 }
 
 function createGLSLPrograms() {
+    const vertexShaderCode =
+        `#version 300 es
+                in vec3 a_position;
+                in vec3 a_color;
+                out vec3 v_color;
+
+                uniform mat4 rotationMatrix;
+                void main(){
+                    gl_Position = rotationMatrix * vec4(a_position,1.0); // extra code for interactive rotation, it does need to be modified
+                    v_color = a_color;
+                }`;
+    const fragmentShaderCode =
+        `#version 300 es
+                precision mediump float;
+
+                in vec3 v_color;
+                out vec4 out_color;
+                void main(){
+                    out_color = vec4(v_color,1.0);
+                    // out_color = vec4(0.0, 0.61, 0.87, 1.0);
+                }`;
+
     var vertexShader = gl.createShader(gl.VERTEX_SHADER);
     compileShader(vertexShader, vertexShaderCode, gl.VERTEX_SHADER, "Vertex shader");
     // Creating fragment shader
@@ -112,9 +86,7 @@ function createGLSLPrograms() {
     shaderProgram.rotationMatrix = gl.getUniformLocation(shaderProgram, "rotationMatrix"); // extra code for interactive rotation, it does need to be modified
 }
 
-function initBuffers() {
-    let dcube = cube(0, 0, 0, 1);
-    // debugger
+function initBuffers(vertices, colors) {
     //----------------------------------------------------------------------------
     // First we need to create buffers on the GPU and copy there our data
     //----------------------------------------------------------------------------
@@ -123,32 +95,26 @@ function initBuffers() {
     // bind the buffer
     gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexBuffer);
     // copy the data from the CPU to the buffer (GPU)
-    // 
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(dcube.vertices), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 
 
-    //------------- Assignment: Create a buffer for color --------------
-    // In similar way (see above):
-    // (1) create a buffer for color,
-    // (2) bind the buffer, and
-    // (3) fill the buffer with the color data
-    //------------------------------------------------------------------
-    //...
+    // Buffers for colors
     var triangleColorBuffer = gl.createBuffer();
+    // bind the buffer
     gl.bindBuffer(gl.ARRAY_BUFFER, triangleColorBuffer);
-    // gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangle_colors), gl.STATIC_DRAW);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(dcube.colors), gl.STATIC_DRAW);
+    // copy the data from the CPU to the buffer (GPU)
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
 
     //----------------------------------------------------------------------------
     // At this point our vertices are already on the GPU.
     // We have to specify how the data will flow through the graphics pipeline.
-    // We do it by setting up the vertex array objects which sotre information about buffers and how the connect to attributes.
+    // We do it by setting up the vertex array objects which store information about buffers and how the connect to attributes.
     //----------------------------------------------------------------------------
 
     // create a vertex array object (VAO) to store information about buffers and attributes
-    triangle_vao = gl.createVertexArray();
+    vao = gl.createVertexArray();
     // bind the VAO
-    gl.bindVertexArray(triangle_vao);
+    gl.bindVertexArray(vao);
 
     //----------------------------------------------------------------------------
     // Now we need to set up all the buffers and attributes for rendering
@@ -163,18 +129,17 @@ function initBuffers() {
     gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);
 
 
-    //--------- Assignment: Configure the attributes for color ----------
-    // Similarly to the code above:
-    // (1) bind the color buffer,
-    // (2) get the color attribute location,
-    // (3) enable the color attribute,
-    // (4) bind the buffer to the attribute
-    //-------------------------------------------------------------------
-    //...
+    // Configure the attributes for color
+    // bind the color buffer
     gl.bindBuffer(gl.ARRAY_BUFFER, triangleColorBuffer);
+    // get the color attribute location
     var colorAttributeLocation = gl.getAttribLocation(shaderProgram, "a_color");
+    // enable the color attribute
     gl.enableVertexAttribArray(colorAttributeLocation);
+    // bind the buffer to the attribute
     gl.vertexAttribPointer(colorAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+
+    return vao;
 }
 
 function draw() {
@@ -192,11 +157,7 @@ function draw() {
     // clear the rendering area
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    // ------------------- Assignment -------------------
     // Enable face culling and depth test for the 2nd part of the assignment
-    //gl.enable(gl.CULL_FACE);
-    //gl.enable(gl.DEPTH_TEST);
-    //---------------------------------------------------
     gl.enable(gl.CULL_FACE);
     gl.enable(gl.DEPTH_TEST);
 
@@ -207,23 +168,40 @@ function draw() {
     gl.useProgram(shaderProgram);
     gl.uniformMatrix4fv(shaderProgram.rotationMatrix, false, rotationMatrix); // extra code for interactive rotation, it does need to be modified
     // bind the VAO (this restores the state from when we were creating the VAO)
-    gl.bindVertexArray(triangle_vao);
-    // ------------------- Assignment -------------------
-    // Remember to set the number of vertices correctly.
-    // For the triangle it is 3, but how many for a cube?
-    //---------------------------------------------------
+
+    // Check
+    let vao = triangle_vao;
+    let n_triangles = 3;
+
+    switch(document.querySelector("#mesh").value) {
+        case "cube":
+            vao = cube_vao;
+            n_triangles = 2*3*6;
+            break;
+        default:
+            vao = triangle_vao;
+            n_triangles = 3;
+            break;
+    }
+
+    gl.bindVertexArray(vao);
     // draw all the triangles
-    gl.drawArrays(gl.TRIANGLES, 0, 6*6);
+    gl.drawArrays(gl.TRIANGLES, 0, n_triangles); // 3 for triangle, 3*2*6 for a cube
 
     window.requestAnimationFrame(function () { draw(); });
 }
 function start() {
+    const dcube = cube(0, 0, 0, 1);
+    const dtriangle = triangle(0, 0, 0, 1);
+
     // initialze WebGL
     initWebGL();
     // create GLSL programs
     createGLSLPrograms();
     // initialize all the buffers and set up the vertex array objects (VAO)
-    initBuffers();
+    triangle_vao = initBuffers(dtriangle.vertices, dtriangle.colors);
+    cube_vao = initBuffers(dcube.vertices, dcube.colors);
+
     // draw
     draw();
 }
