@@ -1,3 +1,4 @@
+
 // ----------------- Assignment ------------------
 // Modify the vertex and the fragment shaders such that:
 // (1) The vertex shader accepts a new attribute a_color of type vec3
@@ -7,19 +8,24 @@
 var vertexShaderCode =
     `#version 300 es
                 in vec3 a_position;
+                in vec3 a_color;
+                out vec3 v_color;
 
                 uniform mat4 rotationMatrix;
                 void main(){
                     gl_Position = rotationMatrix * vec4(a_position,1.0); // extra code for interactive rotation, it does need to be modified
+                    v_color = a_color;
                 }`;
 
 var fragmentShaderCode =
     `#version 300 es
                 precision mediump float;
 
+                in vec3 v_color;
                 out vec4 out_color;
                 void main(){
-                    out_color = vec4(0.0, 0.61, 0.87, 1.0);
+                    out_color = vec4(v_color,1.0);
+                    // out_color = vec4(0.0, 0.61, 0.87, 1.0);
                 }`;
 
 // vertices of our traingle
@@ -34,7 +40,11 @@ var triangle_vertices = [
 // The vertices should have different colors, e.g., reg, green, blue.
 // The colors within the triangle will be interpolated automaticaly.
 //----------------------------------------------
-// var triangle_colors = [...];
+var triangle_colors = [
+    1.0, 0.0, 0.0,
+    0.0, 1.0, 0.0,
+    0.0, 0.0, 1.0
+];
 
 
 var gl; // WebGL context
@@ -65,8 +75,7 @@ function compileShader(shader, source, type, name = "") {
     // compile the shader
     gl.compileShader(shader);
     // check for success and errors
-    let success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-    if (success) {
+    if (gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
         console.log(name + " shader compiled succesfully.");
     } else {
         console.log(name + " vertex shader error.")
@@ -104,6 +113,8 @@ function createGLSLPrograms() {
 }
 
 function initBuffers() {
+    let dcube = cube(0, 0, 0, 1);
+    // debugger
     //----------------------------------------------------------------------------
     // First we need to create buffers on the GPU and copy there our data
     //----------------------------------------------------------------------------
@@ -112,7 +123,8 @@ function initBuffers() {
     // bind the buffer
     gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexBuffer);
     // copy the data from the CPU to the buffer (GPU)
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangle_vertices), gl.STATIC_DRAW);
+    // 
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(dcube.vertices), gl.STATIC_DRAW);
 
 
     //------------- Assignment: Create a buffer for color --------------
@@ -122,7 +134,10 @@ function initBuffers() {
     // (3) fill the buffer with the color data
     //------------------------------------------------------------------
     //...
-
+    var triangleColorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, triangleColorBuffer);
+    // gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangle_colors), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(dcube.colors), gl.STATIC_DRAW);
 
     //----------------------------------------------------------------------------
     // At this point our vertices are already on the GPU.
@@ -156,6 +171,10 @@ function initBuffers() {
     // (4) bind the buffer to the attribute
     //-------------------------------------------------------------------
     //...
+    gl.bindBuffer(gl.ARRAY_BUFFER, triangleColorBuffer);
+    var colorAttributeLocation = gl.getAttribLocation(shaderProgram, "a_color");
+    gl.enableVertexAttribArray(colorAttributeLocation);
+    gl.vertexAttribPointer(colorAttributeLocation, 3, gl.FLOAT, false, 0, 0);
 }
 
 function draw() {
@@ -178,6 +197,8 @@ function draw() {
     //gl.enable(gl.CULL_FACE);
     //gl.enable(gl.DEPTH_TEST);
     //---------------------------------------------------
+    gl.enable(gl.CULL_FACE);
+    gl.enable(gl.DEPTH_TEST);
 
     //----------------------------------------------------------------------------
     // Now we are ready to render
@@ -192,7 +213,7 @@ function draw() {
     // For the triangle it is 3, but how many for a cube?
     //---------------------------------------------------
     // draw all the triangles
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.drawArrays(gl.TRIANGLES, 0, 6*6);
 
     window.requestAnimationFrame(function () { draw(); });
 }
