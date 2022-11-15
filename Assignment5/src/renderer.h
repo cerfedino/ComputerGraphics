@@ -7,6 +7,8 @@
 #include <cmath>
 #include <ctime>
 #include <vector>
+#include <omp.h>
+#include <chrono>
 #include <algorithm>
 #include "glm/glm.hpp"
 #include "glm/gtx/transform.hpp"
@@ -569,10 +571,12 @@ glm::vec3 toneMapping(glm::vec3 intensity){
  * @return int the exit status.
  */
 int render(struct Scene renderScene, string filename) {
-    clock_t t = clock(); // variable for keeping the time of the rendering
+    chrono::high_resolution_clock::time_point start = chrono::high_resolution_clock::now();
 
-    int width = 960; //width of the image
-    int height = 540; // height of the image
+    cout << "Running on " << omp_get_max_threads() << " threads\n";
+    
+    int width = 1920; //width of the image
+    int height = 1440; // height of the image
     float fov = 90; // field of view
 
     lights = renderScene.lights;
@@ -587,26 +591,50 @@ int render(struct Scene renderScene, string filename) {
     const float Z = 1;
     glm::vec3 origin = glm::vec3(0.0, 0.0, 0.0); // origin of the camera
 
-    // Loop over all pixels and traverse the rays through the scene
-    for (int i = 0; i < width ; i++) {
-        for (int j = 0; j < height ; j++) {
+    const int tile_size = 16;
+    const int tiles_x = (width + tile_size - 1) / tile_size; // add one tile if width is not a multiple of tile_size
+    const int tiles_y = (height + tile_size - 1) / tile_size; // add one tile if height is not a multiple of tile_size
+    const int tile_count = tiles_x * tiles_y;
 
-            // X coordinate of the current pixel
-            const float dx = X + i*s + 0.5*s;
-            // Y coordinate of the current pixel
-            const float dy = Y - j*s - 0.5*s;
+    // Loop over all tiles and traverse the rays through the scene
+    #pragma omp parallel for schedule(dynamic, 1)
+    for (int tile = 0; tile < tile_count; tile++) {
+        // print thread 1 progress
+        if (omp_get_thread_num() == 0) {
+            cout << "Progress: " << ceil((float)tile / tile_count * 10000) / 100 << "%\r";
+            cout.flush();
+        }
 
-            // direction of the ray
-            glm::vec3 direction = glm::normalize(glm::vec3(dx, dy, Z));
-            // create the ray
-            Ray ray(origin, direction);
-            // trace the ray and set the color of the pixel
-            image.setPixel(i, j, toneMapping(trace_ray(ray)));
+        // Compute the tile coordinates
+        const int tile_j = tile / tiles_x; // the tile column number
+        const int tile_i = tile - tile_j * tiles_x; // the tile row number
+        const int tile_i_start = tile_i * tile_size; // the x coordinate of the tile 
+        const int tile_j_start = tile_j * tile_size; // the y coordinate of the tile
+        const int tile_i_end = min(tile_i_start + tile_size, width); // the x coordinate of the tile + tile_size
+        const int tile_j_end = min(tile_j_start + tile_size, height); // the y coordinate of the tile + tile_size
+
+        // Loop over all pixels in the tile
+        for (int i = tile_i_start; i < tile_i_end ; i++) {
+            for (int j = tile_j_start; j < tile_j_end; j++) {
+                // X coordinate of the current pixel
+                const float dx = X + i*s + 0.5*s;
+                // Y coordinate of the current pixel
+                const float dy = Y - j*s - 0.5*s;
+
+                // direction of the ray
+                glm::vec3 direction = glm::normalize(glm::vec3(dx, dy, Z));
+                // create the ray
+                Ray ray(origin, direction);
+                // trace the ray and set the color of the pixel
+                image.setPixel(i, j, toneMapping(trace_ray(ray)));
+            }
         }
     }
-    t = clock() - t;
-    cout<<"It took " << ((float)t)/CLOCKS_PER_SEC<< " seconds to render the image."<< endl;
-    cout<<"I could render at "<< (float)CLOCKS_PER_SEC/((float)t) << " frames per second."<<endl;
+    chrono::high_resolution_clock::time_point end = chrono::high_resolution_clock::now();
+    chrono::duration<double> time_span = chrono::duration_cast<chrono::duration<double>>(end - start);
+
+    cout<<"It took " << time_span.count() << " seconds to render the image."<< endl;
+    // cout<<"I could render at "<< (float)CLOCKS_PER_SEC/((float)t) << " frames per second."<<endl;
 
     // Writing the final results of the rendering
     cout << "Saving render to file '"<< filename << "'\n";
