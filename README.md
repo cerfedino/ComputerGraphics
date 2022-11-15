@@ -15,6 +15,10 @@
 ### Assignment 6 - Shadows, Reﬂection, and Refraction
 <image src="./Assignment6/render/result.gif" width="60%">
 
+### Assignment 8 - WebGL
+<image style="display: inline-block" src="./Assignment8/render/cube.png" width="30%">
+<image src="./Assignment8/render/triangle.png" width="30%">
+
 
 # Rendering
 1. `cd` into the target assignment folder

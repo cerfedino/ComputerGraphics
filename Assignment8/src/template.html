@@ -1,0 +1,22 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <script src="gl-matrix-min.js"></script>
+    </head>
+    <script src="./geometry.js"></script>
+    <script src="./init.js"></script>
+
+    <body onload="start();">
+        <canvas id="webgl-canvas" width="768" height="768"></canvas>
+        <div  style="float: right">
+            <div class="slidecontainer">
+                Rotation:</br><input type="range" min="0" max="200" value="100" id="rotation">
+                <select id="mesh">
+                    <option value="triangle">Triangle</option>
+                    <option value="cube">Cube</option>
+                </select>
+            </div>
+        </div>
+    </body>
+
+</html>
