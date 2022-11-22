@@ -7,6 +7,9 @@ var vertexShaderCode =
     uniform mat4 rotationMatrix; // required for the solution of the previous assignment, please remove
 
     // Exercise 1: add uniforms for all transformation matrices
+    uniform mat4 viewMatrix;
+    uniform mat4 projectionMatrix;
+    
     // Exercise 3: add input attribute for normals
     //             add output variables required for light computation, e.g., normal, view direction etc.
     //             add here also a uniform for light direction, unless you pass it directly to the fragment shader
@@ -18,7 +21,7 @@ var vertexShaderCode =
         // remember that all the locations and vectors have to be in a common space, e.g., eye/camera space
 
         // replace the rotationMatrix with correct transformations
-        gl_Position = rotationMatrix * vec4(a_position,1.0);
+        gl_Position =  projectionMatrix * viewMatrix * vec4(a_position,1.0);
     }`;
 
 var fragmentShaderCode =
@@ -46,6 +49,8 @@ var shaderProgram; // the GLSL program we will use for rendering
 var cube_vao; // the vertex array object for the cube
 
 // Exercise 2: you may want to add here variable for VAO of plane and sphere
+var plane_vao; // the vertex array object for the plane
+var sphere_vao; // the vertex array object for the sphere
 
 
 // The function initilize the WebGL canvas
@@ -160,18 +165,25 @@ function draw(){
 
     // Exercise 1:
     // add computation of camera position
-    // let camera_x =
-    // let camera_y =
-    // let camera_z =
-    // let camera_position = vec3.fromValues(camera_x, camera_y, camera_z);
+    let camera_x = camera_distance * Math.sin(camera_polar_angle) * Math.cos(camera_azimuthal_angle);
+    let camera_y = camera_distance * Math.sin(camera_polar_angle) * Math.sin(camera_azimuthal_angle);
+    let camera_z = camera_distance * Math.cos(camera_polar_angle);
+
+    let camera_position = vec3.fromValues(camera_x, camera_y, camera_z);
 
     // Excercise 3:
     // add computation of light direction
-    // let light_x =
-    // let light_y =
-    // let light_z =
+    // let light_x = Math.sin(light_polar_angle) * Math.cos(light_azimuthal_angle);
+    // let light_y = Math.sin(light_polar_angle) * Math.sin(light_azimuthal_angle);
+    // let light_z = Math.cos(light_polar_angle);
     // let lightDirection = vec3.fromValues(light_x, light_y, light_z);
     // add computation of view and projection matrices
+    let viewMatrix = mat4.create();
+    mat4.lookAt(viewMatrix, camera_position, [0, 0, 0], [0, 0, 1]);
+    let projectionMatrix = mat4.create();
+    mat4.perspective(projectionMatrix, camera_fov, gl.viewportWidth / gl.viewportHeight, 0.01, 1000.0);
+    
+
 
 
     // relevant only for the solutions of the previous assignment (please remove it for this assignment)
@@ -183,6 +195,7 @@ function draw(){
     gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
     gl.clearColor(0.2, 0.2, 0.2, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.cullFace(gl.FRONT); // TODO: figure out why we see back faces ?????  
     gl.enable(gl.CULL_FACE);
     gl.enable(gl.DEPTH_TEST);
 
@@ -193,6 +206,17 @@ function draw(){
     // - Before drawing anything using the program you still have to set values of all uniforms.
     // - As long as you use the same shader program you do not need to set all uniforms everytime you draw new object. The programs remembers the uniforms after calling gl.drawArrays
     // - The same, if you draw the same object, e.g., cube, multiple times, you do not need to bind the corresponding VAO everytime you draw.
+
+    // set the uniforms
+    let viewMatrixLocation = gl.getUniformLocation(shaderProgram, "viewMatrix");
+    gl.uniformMatrix4fv(viewMatrixLocation, false, viewMatrix);
+
+    let projectionMatrixLocation = gl.getUniformLocation(shaderProgram, "projectionMatrix");
+    gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
+
+
+
+
 
 
     // drawing the cube
