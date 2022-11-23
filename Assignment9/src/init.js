@@ -4,9 +4,12 @@ var vertexShaderCode =
     in vec3 a_color;
     out vec3 v_color;
 
-    uniform mat4 rotationMatrix; // required for the solution of the previous assignment, please remove
-
     // Exercise 1: add uniforms for all transformation matrices
+    // Object transformation(s)
+    uniform mat4 scaleMatrix;
+    uniform mat4 rotationMatrix;
+    uniform mat4 translationMatrix;
+    // Camera rotation
     uniform mat4 viewMatrix;
     uniform mat4 projectionMatrix;
     
@@ -21,7 +24,7 @@ var vertexShaderCode =
         // remember that all the locations and vectors have to be in a common space, e.g., eye/camera space
 
         // replace the rotationMatrix with correct transformations
-        gl_Position =  projectionMatrix * viewMatrix * vec4(a_position,1.0);
+        gl_Position =  projectionMatrix * viewMatrix * translationMatrix * rotationMatrix * scaleMatrix * vec4(a_position,1.0);
     }`;
 
 var fragmentShaderCode =
@@ -125,32 +128,39 @@ function createGLSLPrograms(){
 //      plane_vao = gl.createVertexArray();
 //      createVAO(plane_vao, shaderProgram, plane_vertices, plane_normals, plane_colors);
 function createVAO(vao, shader, vertices, colors){
-}
-
-function initBuffers(){
     // a buffer for positions
-    var cubeVertexBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, cubeVertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cube_vertices), gl.STATIC_DRAW);
+    var vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 
     // a buffer for colors
-    var cubeColorBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, cubeColorBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cube_colors), gl.STATIC_DRAW);
+    var colorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
 
-    // VAO for a cube
-    cube_vao = gl.createVertexArray();
-    gl.bindVertexArray(cube_vao);
+    // bind the VAO
+    gl.bindVertexArray(vao);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, cubeVertexBuffer);
-    var positionAttributeLocation = gl.getAttribLocation(shaderProgram, "a_position");
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    var positionAttributeLocation = gl.getAttribLocation(shader, "a_position");
     gl.enableVertexAttribArray(positionAttributeLocation);
     gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, cubeColorBuffer);
-    var colorAttributeLocation = gl.getAttribLocation(shaderProgram, "a_color");
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    var colorAttributeLocation = gl.getAttribLocation(shader, "a_color");
     gl.enableVertexAttribArray(colorAttributeLocation);
     gl.vertexAttribPointer(colorAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+}
+
+function initBuffers(){
+    cube_vao = gl.createVertexArray();
+    createVAO(cube_vao, shaderProgram, cube_vertices, cube_colors);
+
+    plane_vao = gl.createVertexArray();
+    createVAO(plane_vao, shaderProgram, plane_vertices, plane_colors);
+
+    sphere_vao = gl.createVertexArray();
+    createVAO(sphere_vao, shaderProgram, sphere_vertices, sphere_colors);
 }
 
 function draw(){
@@ -166,20 +176,22 @@ function draw(){
     // Exercise 1:
     // add computation of camera position
     let camera_x = camera_distance * Math.sin(camera_polar_angle) * Math.cos(camera_azimuthal_angle);
-    let camera_y = camera_distance * Math.sin(camera_polar_angle) * Math.sin(camera_azimuthal_angle);
-    let camera_z = camera_distance * Math.cos(camera_polar_angle);
+    let camera_z = camera_distance * Math.sin(camera_polar_angle) * Math.sin(camera_azimuthal_angle);
+    let camera_y = camera_distance * Math.cos(camera_polar_angle);
 
     let camera_position = vec3.fromValues(camera_x, camera_y, camera_z);
 
     // Excercise 3:
     // add computation of light direction
-    // let light_x = Math.sin(light_polar_angle) * Math.cos(light_azimuthal_angle);
-    // let light_y = Math.sin(light_polar_angle) * Math.sin(light_azimuthal_angle);
-    // let light_z = Math.cos(light_polar_angle);
-    // let lightDirection = vec3.fromValues(light_x, light_y, light_z);
+    let light_x = Math.sin(light_polar_angle) * Math.cos(light_azimuthal_angle);
+    let light_y = Math.sin(light_polar_angle) * Math.sin(light_azimuthal_angle);
+    let light_z = Math.cos(light_polar_angle);
+    let lightDirection = vec3.fromValues(light_x, light_y, light_z);
+    
+    
     // add computation of view and projection matrices
     let viewMatrix = mat4.create();
-    mat4.lookAt(viewMatrix, camera_position, [0, 0, 0], [0, 0, 1]);
+    mat4.lookAt(viewMatrix, camera_position, [0, 0, 0], [0, 1, 0]);
     let projectionMatrix = mat4.create();
     mat4.perspective(projectionMatrix, camera_fov, gl.viewportWidth / gl.viewportHeight, 0.01, 1000.0);
     
@@ -195,7 +207,6 @@ function draw(){
     gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
     gl.clearColor(0.2, 0.2, 0.2, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.cullFace(gl.FRONT); // TODO: figure out why we see back faces ?????  
     gl.enable(gl.CULL_FACE);
     gl.enable(gl.DEPTH_TEST);
 
@@ -207,23 +218,61 @@ function draw(){
     // - As long as you use the same shader program you do not need to set all uniforms everytime you draw new object. The programs remembers the uniforms after calling gl.drawArrays
     // - The same, if you draw the same object, e.g., cube, multiple times, you do not need to bind the corresponding VAO everytime you draw.
 
-    // set the uniforms
+    // Camera transformations
     let viewMatrixLocation = gl.getUniformLocation(shaderProgram, "viewMatrix");
     gl.uniformMatrix4fv(viewMatrixLocation, false, viewMatrix);
 
     let projectionMatrixLocation = gl.getUniformLocation(shaderProgram, "projectionMatrix");
     gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
 
+    // Animation
+    const offsetx = 0.0015*((new Date()).getTime())
+    // for(x=-5; x < 5; x+=0.2) {
+    //     y = Math.sin(x+offsetx);
+    //     for(z=-5; z < 5; z+=0.2) {
+    //     gl.bindVertexArray(cube_vao);
+    //     setTransformationUniforms(
+    //             vec3.fromValues(x,y,z),
+    //             vec3.fromValues(-Math.PI/6,Math.PI,0),
+    //             vec3.fromValues(0.1,0.1,0.1))
+    //     gl.drawArrays(gl.TRIANGLES, 0, cube_vertices.length/3);
+    //     }
+    
+    // }
+    
 
-
-
-
-
-    // drawing the cube
+      
+    // Setting cube
     gl.bindVertexArray(cube_vao);
-    let rotationMatrixLocation = gl.getUniformLocation(shaderProgram,"rotationMatrix");
-    gl.uniformMatrix4fv(rotationMatrixLocation, false, rotationMatrix);
+    setTransformationUniforms(
+            vec3.fromValues(0,0,0),
+            vec3.fromValues(Math.PI/2.5,0,0),
+            vec3.fromValues(1,1,1))
     gl.drawArrays(gl.TRIANGLES, 0, cube_vertices.length/3);
+
+    gl.bindVertexArray(cube_vao);   
+    setTransformationUniforms(
+            vec3.fromValues(0,0,0.5),
+            vec3.fromValues(Math.PI/2.5,Math.PI,Math.PI),
+            vec3.fromValues(1,1,1))
+    gl.drawArrays(gl.TRIANGLES, 0, cube_vertices.length/3);
+    
+    // Setting plane
+    gl.bindVertexArray(plane_vao);
+    setTransformationUniforms(
+        vec3.fromValues(0,0,0),
+        vec3.fromValues(0,0,0),
+        vec3.fromValues(2,2,2))
+    gl.drawArrays(gl.TRIANGLES, 0, plane_vertices.length/3);
+
+    // Setting the sphere
+    gl.bindVertexArray(sphere_vao);
+    setTransformationUniforms(
+        vec3.fromValues(1,1,0),
+        vec3.fromValues(0,0,0),
+        vec3.fromValues(Math.sin(offsetx),1,1))
+    gl.drawArrays(gl.TRIANGLES, 0, sphere_vertices.length/3);
+
 
 
     window.requestAnimationFrame(function() {draw();});
