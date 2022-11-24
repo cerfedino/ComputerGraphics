@@ -158,8 +158,6 @@ function draw(){
     mat4.lookAt(viewMatrix, camera_position, [0, 0, 0], [0, 1, 0]);
     let projectionMatrix = mat4.create();
     mat4.perspective(projectionMatrix, camera_fov, gl.viewportWidth / gl.viewportHeight, 0.01, 1000.0);
-    
-
 
 
     // relevant only for the solutions of the previous assignment (please remove it for this assignment)
@@ -194,23 +192,22 @@ function draw(){
     gl.uniform3fv(lightVecLocation, light_direction);
 
     let lightColorLocation = gl.getUniformLocation(shaderProgram, "lightColor");
-    gl.uniform3fv(lightColorLocation, vec3.fromValues(1, 1, 1));
+    gl.uniform3fv(lightColorLocation, vec3.fromValues(1.0, 1.0, 1.0));
 
 
     // Animation
-    const offsetx = 0.0015*((new Date()).getTime())
-    // for(x=-5; x < 5; x+=0.2) {
-    //     y = Math.sin(x+offsetx);
-    //     for(z=-5; z < 5; z+=0.2) {
-    //     gl.bindVertexArray(cube_vao);
-    //     setTransformationUniforms(
-    //             vec3.fromValues(x,y,z),
-    //             vec3.fromValues(-Math.PI/6,Math.PI,0),
-    //             vec3.fromValues(0.1,0.1,0.1))
-    //     gl.drawArrays(gl.TRIANGLES, 0, cube_vertices.length/3);
-    //     }
-    
-    // }
+    let offset = window.performance.now() / 1000;
+    for(x=-5; x < 5; x+=0.2) {
+        y = Math.sin(x+offset);
+        for(z=-5; z < 5; z+=0.2) {
+        gl.bindVertexArray(cube_vao);
+        setTransformationUniforms(
+                vec3.fromValues(x,y,z),
+                vec3.fromValues(-Math.PI/6,Math.PI*offset,0),
+                vec3.fromValues(0.1,0.1,0.1))
+        gl.drawArrays(gl.TRIANGLES, 0, cube_vertices.length/3);
+        }
+    }
     
 
       

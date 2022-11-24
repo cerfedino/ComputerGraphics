@@ -31,11 +31,11 @@ void main(){
     // compute all the variables required for light computation in the fragment shader
     // remember that all the locations and vectors have to be in a common space, e.g., eye/camera space
 
-    mat4 transformationMatrix = projectionMatrix * viewMatrix * translationMatrix * rotationMatrix * scaleMatrix;
+    mat4 modelMatrix = translationMatrix * rotationMatrix * scaleMatrix;
 
     // TODO: calculate view direction
     // replace the rotationMatrix with correct transformations
-    gl_Position = transformationMatrix * vec4(a_position,1.0);
+    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(a_position,1.0);
+    v_normal = vec3(rotationMatrix * vec4(a_normal, 0.0));
     v_view_direction = normalize(vec3(gl_Position));
-    v_normal = vec3(transformationMatrix * vec4(a_normal, 0.0));
 }
