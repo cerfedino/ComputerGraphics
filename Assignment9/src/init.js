@@ -1,52 +1,3 @@
-var vertexShaderCode =
-    `#version 300 es
-    in vec3 a_position;
-    in vec3 a_color;
-    out vec3 v_color;
-
-    // Exercise 1: add uniforms for all transformation matrices
-    // Object transformation(s)
-    uniform mat4 scaleMatrix;
-    uniform mat4 rotationMatrix;
-    uniform mat4 translationMatrix;
-    // Camera rotation
-    uniform mat4 viewMatrix;
-    uniform mat4 projectionMatrix;
-    
-    // Exercise 3: add input attribute for normals
-    //             add output variables required for light computation, e.g., normal, view direction etc.
-    //             add here also a uniform for light direction, unless you pass it directly to the fragment shader
-
-    void main(){
-        v_color = a_color;
-
-        // compute all the variables required for light computation in the fragment shader
-        // remember that all the locations and vectors have to be in a common space, e.g., eye/camera space
-
-        // replace the rotationMatrix with correct transformations
-        gl_Position =  projectionMatrix * viewMatrix * translationMatrix * rotationMatrix * scaleMatrix * vec4(a_position,1.0);
-    }`;
-
-var fragmentShaderCode =
-    `#version 300 es
-    precision mediump float;
-
-    in vec3 v_color;
-
-    // Exercise 3: add all the input variable passed from the vertex shader
-    //             if the do not include the light direction, you should add here an additional uniform for it
-    //             you can also add here constants for Phong shading model, e.g., light color, ambient, diffuse, and specular coefficients, gamma value, as well as shininess
-
-    out vec4 out_color;
-    void main(){
-
-        // Exercise 3: add computation of Phong shading
-        //             do not forget about: normalizing all vectors beforehand, (2) performing gamma correction at the end
-
-        out_color = vec4(v_color, 1.0);
-    }`;
-
-
 var gl; // WebGL context
 var shaderProgram; // the GLSL program we will use for rendering
 var cube_vao; // the vertex array object for the cube
@@ -54,6 +5,9 @@ var cube_vao; // the vertex array object for the cube
 // Exercise 2: you may want to add here variable for VAO of plane and sphere
 var plane_vao; // the vertex array object for the plane
 var sphere_vao; // the vertex array object for the sphere
+
+var vertexShaderCode;
+var fragmentShaderCode;
 
 
 // The function initilize the WebGL canvas
@@ -127,16 +81,21 @@ function createGLSLPrograms(){
 //      createVAO(sphere_vao, shaderProgram, sphere_vertices, sphere_vertices, sphere_colors);
 //      plane_vao = gl.createVertexArray();
 //      createVAO(plane_vao, shaderProgram, plane_vertices, plane_normals, plane_colors);
-function createVAO(vao, shader, vertices, colors){
+function createVAO(vao, shader, vertices, colors, normals){
     // a buffer for positions
-    var vertexBuffer = gl.createBuffer();
+    let vertexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 
     // a buffer for colors
-    var colorBuffer = gl.createBuffer();
+    let colorBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+
+    // a buffer for normals
+    let normalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
 
     // bind the VAO
     gl.bindVertexArray(vao);
@@ -150,17 +109,22 @@ function createVAO(vao, shader, vertices, colors){
     var colorAttributeLocation = gl.getAttribLocation(shader, "a_color");
     gl.enableVertexAttribArray(colorAttributeLocation);
     gl.vertexAttribPointer(colorAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+    var normalAttributeLocation = gl.getAttribLocation(shader, "a_normal");
+    gl.enableVertexAttribArray(normalAttributeLocation);
+    gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);
 }
 
 function initBuffers(){
     cube_vao = gl.createVertexArray();
-    createVAO(cube_vao, shaderProgram, cube_vertices, cube_colors);
+    createVAO(cube_vao, shaderProgram, cube_vertices, cube_colors, cube_normals);
 
     plane_vao = gl.createVertexArray();
-    createVAO(plane_vao, shaderProgram, plane_vertices, plane_colors);
+    createVAO(plane_vao, shaderProgram, plane_vertices, plane_colors, plane_normals);
 
     sphere_vao = gl.createVertexArray();
-    createVAO(sphere_vao, shaderProgram, sphere_vertices, sphere_colors);
+    createVAO(sphere_vao, shaderProgram, sphere_vertices, sphere_colors, sphere_normals);
 }
 
 function draw(){
@@ -184,9 +148,9 @@ function draw(){
     // Excercise 3:
     // add computation of light direction
     let light_x = Math.sin(light_polar_angle) * Math.cos(light_azimuthal_angle);
-    let light_y = Math.sin(light_polar_angle) * Math.sin(light_azimuthal_angle);
-    let light_z = Math.cos(light_polar_angle);
-    let lightDirection = vec3.fromValues(light_x, light_y, light_z);
+    let light_z = Math.sin(light_polar_angle) * Math.sin(light_azimuthal_angle);
+    let light_y = Math.cos(light_polar_angle);
+    let light_direction = vec3.fromValues(light_x, light_y, light_z);
     
     
     // add computation of view and projection matrices
@@ -218,12 +182,20 @@ function draw(){
     // - As long as you use the same shader program you do not need to set all uniforms everytime you draw new object. The programs remembers the uniforms after calling gl.drawArrays
     // - The same, if you draw the same object, e.g., cube, multiple times, you do not need to bind the corresponding VAO everytime you draw.
 
-    // Camera transformations
+    // Set uniforms
     let viewMatrixLocation = gl.getUniformLocation(shaderProgram, "viewMatrix");
     gl.uniformMatrix4fv(viewMatrixLocation, false, viewMatrix);
 
     let projectionMatrixLocation = gl.getUniformLocation(shaderProgram, "projectionMatrix");
     gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
+
+    // Ligth
+    let lightVecLocation = gl.getUniformLocation(shaderProgram, "light_direction");
+    gl.uniform3fv(lightVecLocation, light_direction);
+
+    let lightColorLocation = gl.getUniformLocation(shaderProgram, "lightColor");
+    gl.uniform3fv(lightColorLocation, vec3.fromValues(1, 1, 1));
+
 
     // Animation
     const offsetx = 0.0015*((new Date()).getTime())
@@ -270,14 +242,19 @@ function draw(){
     setTransformationUniforms(
         vec3.fromValues(1,1,0),
         vec3.fromValues(0,0,0),
-        vec3.fromValues(Math.sin(offsetx),1,1))
+        vec3.fromValues(1,1,1))
     gl.drawArrays(gl.TRIANGLES, 0, sphere_vertices.length/3);
 
 
 
     window.requestAnimationFrame(function() {draw();});
 }
-function start(){
+async function start(){
+    vertexShaderCode = await (await fetch('GLSL/vertexshader.glsl')).text()
+    fragmentShaderCode = await (await fetch('GLSL/fragmentshader.glsl')).text()
+    
+    // console.log(vertexShaderCode, fragmentShaderCode)
+    
     // initialze WebGL
     initWebGL();
     // create GLSL programs

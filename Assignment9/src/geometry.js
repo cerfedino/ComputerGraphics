@@ -1,3 +1,11 @@
+function reverseMesh(vertices) {
+    let result = []
+    for(let i=0; i < vertices.length; i +=3) {
+        result.push(vertices.slice(i, i+3))
+    }
+    return result.reverse().flat()
+}
+
 // definition of a plane
 var plane_vertices = [
     -0.5,  0.0,  -0.5,
@@ -111,14 +119,36 @@ var cube_normals = [];
 function compute_normals(vertices, normals){
     // Exercise 3: implement the function which computes normals of the cube
     // and add them to cube_normals
+    // Iterates through triangles
+    for(let i=0; i < vertices.length; i +=9) {
+        let p1 = vec3.fromValues(...vertices.slice(i, i+3))
+        let p2 = vec3.fromValues(...vertices.slice(i+3, i+6))
+        let p3 = vec3.fromValues(...vertices.slice(i+6, i+9))
+        let A = vec3.create()
+        let B = vec3.create()
+        let normal = vec3.create()
+
+        vec3.subtract(A,p2,p1)
+        vec3.subtract(B,p3,p1)
+        
+        vec3.cross(normal,A,B)
+        vec3.normalize(normal, normal)
+
+        normals.push(normal[0], normal[1], normal[2])
+        normals.push(normal[0], normal[1], normal[2])
+        normals.push(normal[0], normal[1], normal[2])
+    }
 }
 compute_normals(cube_vertices,cube_normals);
+
+
 
 //---------------------------
 // definition of the sphere
 //---------------------------
 var sphere_vertices = [];
 var sphere_colors = [];
+var sphere_normals = [];
 function create_sphere(){
     let step = 0.01;
     for(let u = 0; u < 1; u = u + step){
@@ -160,4 +190,5 @@ function create_sphere(){
 }
 
 create_sphere();
+compute_normals(sphere_vertices, sphere_normals)
 
