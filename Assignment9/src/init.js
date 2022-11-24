@@ -1,10 +1,12 @@
 var gl; // WebGL context
 var shaderProgram; // the GLSL program we will use for rendering
-var cube_vao; // the vertex array object for the cube
 
 // Exercise 2: you may want to add here variable for VAO of plane and sphere
+var cube_vao; // the vertex array object for the cube
 var plane_vao; // the vertex array object for the plane
 var sphere_vao; // the vertex array object for the sphere
+var plightphere_vao; // vertex array object for the point light
+
 
 var vertexShaderCode;
 var fragmentShaderCode;
@@ -74,13 +76,6 @@ function createGLSLPrograms(){
 // Since one has to repeat creating VAO of each object (cube, plane, sphere) separately,
 // we suggest implement a function which takes the arrays containing values of the attributes,
 // and then, creates VBOa, VAOs, and sets up the attributes.
-// This should later simplify your code in initBuffers() to something like:
-//      cube_vao = gl.createVertexArray();
-//      createVAO(cube_vao, shaderProgram, cube_vertices, cube_normals, cube_colors);
-//      sphere_vao = gl.createVertexArray();
-//      createVAO(sphere_vao, shaderProgram, sphere_vertices, sphere_vertices, sphere_colors);
-//      plane_vao = gl.createVertexArray();
-//      createVAO(plane_vao, shaderProgram, plane_vertices, plane_normals, plane_colors);
 function createVAO(vao, shader, vertices, colors, normals){
     // a buffer for positions
     let vertexBuffer = gl.createBuffer();
@@ -114,17 +109,30 @@ function createVAO(vao, shader, vertices, colors, normals){
     var normalAttributeLocation = gl.getAttribLocation(shader, "a_normal");
     gl.enableVertexAttribArray(normalAttributeLocation);
     gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+
+    return {
+        vertexBuffer,
+        colorBuffer,
+        normalBuffer,
+
+        positionAttributeLocation,
+        colorAttributeLocation,
+        normalAttributeLocation
+    }
 }
 
 function initBuffers(){
-    cube_vao = gl.createVertexArray();
-    createVAO(cube_vao, shaderProgram, cube_vertices, cube_colors, cube_normals);
+    cube_vao = {VAO: gl.createVertexArray()};
+    cube_vao = {...cube_vao, ...createVAO(cube_vao.VAO, shaderProgram, cube_vertices, cube_colors, cube_normals)};
 
-    plane_vao = gl.createVertexArray();
-    createVAO(plane_vao, shaderProgram, plane_vertices, plane_colors, plane_normals);
+    plane_vao = {VAO: gl.createVertexArray()};
+    plane_vao = {...plane_vao, ...createVAO(plane_vao.VAO, shaderProgram, plane_vertices, plane_colors, plane_normals)};
 
-    sphere_vao = gl.createVertexArray();
-    createVAO(sphere_vao, shaderProgram, sphere_vertices, sphere_colors, sphere_normals);
+    sphere_vao = {VAO: gl.createVertexArray()};
+    sphere_vao = {...sphere_vao, ...createVAO(sphere_vao.VAO, shaderProgram, sphere_vertices, sphere_colors, sphere_normals)};
+
+    plightphere_vao = {VAO: gl.createVertexArray()};
+    plightphere_vao = {...plightphere_vao, ...createVAO(plightphere_vao.VAO, shaderProgram, sphere_vertices, sphere_colors, sphere_normals)};
 }
 
 function draw(){
@@ -134,8 +142,9 @@ function draw(){
     let camera_polar_angle = document.getElementById("camera_polar_angle").value / 360 * 2 * Math.PI;
     let camera_distance = document.getElementById("camera_distance").value / 10;
     let camera_fov = document.getElementById("camera_fov").value / 360 * 2 * Math.PI;
-    let light_azimuthal_angle = document.getElementById("light_azimuthal_angle").value / 360 * 2 * Math.PI;
-    let light_polar_angle = document.getElementById("light_polar_angle").value / 360 * 2 * Math.PI;
+    // Directional Light
+    let dlight_azimuthal_angle = document.getElementById("light_azimuthal_angle").value / 360 * 2 * Math.PI;
+    let dlight_polar_angle = document.getElementById("light_polar_angle").value / 360 * 2 * Math.PI;
 
     // Exercise 1:
     // add computation of camera position
@@ -145,12 +154,20 @@ function draw(){
 
     let camera_position = vec3.fromValues(camera_x, camera_y, camera_z);
 
-    // Excercise 3:
-    // add computation of light direction
-    let light_x = Math.sin(light_polar_angle) * Math.cos(light_azimuthal_angle);
-    let light_z = Math.sin(light_polar_angle) * Math.sin(light_azimuthal_angle);
-    let light_y = Math.cos(light_polar_angle);
-    let light_direction = vec3.fromValues(light_x, light_y, light_z);
+    // Exercise 3:
+    // Directional Light
+    let dlight_x = Math.sin(dlight_polar_angle) * Math.cos(dlight_azimuthal_angle);
+    let dlight_z = Math.sin(dlight_polar_angle) * Math.sin(dlight_azimuthal_angle);
+    let dlight_y = Math.cos(dlight_polar_angle);
+    let dlight_direction = vec3.fromValues(dlight_x, dlight_y, dlight_z);
+    let dlight_colorHEX = document.getElementById("dlight_color").value
+    let dlight_color = vec3.fromValues(parseInt(dlight_colorHEX.substr(1,2), 16),parseInt(dlight_colorHEX.substr(3,2), 16),parseInt(dlight_colorHEX.substr(5,2), 16))
+    vec3.divide(dlight_color, dlight_color, vec3.fromValues(255,255,255))
+    // Point light
+    let plight_position = vec3.fromValues(document.getElementById("plight_x").value,document.getElementById("plight_y").value,document.getElementById("plight_z").value)
+    let plight_colorHEX = document.getElementById("plight_color").value
+    let plight_color = vec3.fromValues(parseInt(plight_colorHEX.substr(1,2), 16),parseInt(plight_colorHEX.substr(3,2), 16),parseInt(plight_colorHEX.substr(5,2), 16))
+    vec3.divide(plight_color, plight_color, vec3.fromValues(255,255,255))
     
     
     // add computation of view and projection matrices
@@ -158,12 +175,6 @@ function draw(){
     mat4.lookAt(viewMatrix, camera_position, [0, 0, 0], [0, 1, 0]);
     let projectionMatrix = mat4.create();
     mat4.perspective(projectionMatrix, camera_fov, gl.viewportWidth / gl.viewportHeight, 0.01, 1000.0);
-
-
-    // relevant only for the solutions of the previous assignment (please remove it for this assignment)
-    var rotation = document.getElementById("rotation");
-    var rotationMatrix = mat4.create();
-    mat4.fromRotation(rotationMatrix, -(rotation.value-100)/100*Math.PI, vec3.fromValues(-0.2,1,0));
 
 
     gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
@@ -175,11 +186,6 @@ function draw(){
     // enable the GLSL program for the rendering
     gl.useProgram(shaderProgram);
 
-    // Tips for drawing:
-    // - Before drawing anything using the program you still have to set values of all uniforms.
-    // - As long as you use the same shader program you do not need to set all uniforms everytime you draw new object. The programs remembers the uniforms after calling gl.drawArrays
-    // - The same, if you draw the same object, e.g., cube, multiple times, you do not need to bind the corresponding VAO everytime you draw.
-
     // Set uniforms
     let viewMatrixLocation = gl.getUniformLocation(shaderProgram, "viewMatrix");
     gl.uniformMatrix4fv(viewMatrixLocation, false, viewMatrix);
@@ -187,60 +193,81 @@ function draw(){
     let projectionMatrixLocation = gl.getUniformLocation(shaderProgram, "projectionMatrix");
     gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
 
-    // Ligth
-    let lightVecLocation = gl.getUniformLocation(shaderProgram, "light_direction");
-    gl.uniform3fv(lightVecLocation, light_direction);
+    // Directional Light
+    let dlightDirectionLocation = gl.getUniformLocation(shaderProgram, "dlight_direction");
+    gl.uniform3fv(dlightDirectionLocation, dlight_direction);
 
-    let lightColorLocation = gl.getUniformLocation(shaderProgram, "lightColor");
-    gl.uniform3fv(lightColorLocation, vec3.fromValues(1.0, 1.0, 1.0));
+    let dlightColorLocation = gl.getUniformLocation(shaderProgram, "dlightColor");
+    gl.uniform3fv(dlightColorLocation, dlight_color);
+
+    // Point Light
+    let pLightPositionLocation = gl.getUniformLocation(shaderProgram, "plight_position");
+    gl.uniform3fv(pLightPositionLocation, plight_position);
+
+    let plightColorLocation = gl.getUniformLocation(shaderProgram, "plightColor");
+    gl.uniform3fv(plightColorLocation, plight_color);
+
 
 
     // Animation
     let offset = window.performance.now() / 1000;
-    for(x=-5; x < 5; x+=0.2) {
+    for(x=-5.0; x < 5.0; x+=0.2) {
         y = Math.sin(x+offset);
-        for(z=-5; z < 5; z+=0.2) {
-        gl.bindVertexArray(cube_vao);
+        for(z=-5.0; z < 5.0; z+=0.2) {
+        gl.bindVertexArray(cube_vao.VAO);
         setTransformationUniforms(
                 vec3.fromValues(x,y,z),
-                vec3.fromValues(-Math.PI/6,Math.PI*offset,0),
+                vec3.fromValues(-Math.PI/6,0.2*offset,0),
                 vec3.fromValues(0.1,0.1,0.1))
         gl.drawArrays(gl.TRIANGLES, 0, cube_vertices.length/3);
         }
     }
     
 
-      
-    // Setting cube
-    gl.bindVertexArray(cube_vao);
+    // Drawing cube
+    gl.bindVertexArray(cube_vao.VAO);
     setTransformationUniforms(
             vec3.fromValues(0,0,0),
             vec3.fromValues(Math.PI/2.5,0,0),
             vec3.fromValues(1,1,1))
     gl.drawArrays(gl.TRIANGLES, 0, cube_vertices.length/3);
 
-    gl.bindVertexArray(cube_vao);   
+    gl.bindVertexArray(cube_vao.VAO);   
     setTransformationUniforms(
             vec3.fromValues(0,0,0.5),
             vec3.fromValues(Math.PI/2.5,Math.PI,Math.PI),
             vec3.fromValues(1,1,1))
     gl.drawArrays(gl.TRIANGLES, 0, cube_vertices.length/3);
     
-    // Setting plane
-    gl.bindVertexArray(plane_vao);
+    // Drawing plane
+    gl.bindVertexArray(plane_vao.VAO);;
     setTransformationUniforms(
         vec3.fromValues(0,0,0),
         vec3.fromValues(0,0,0),
         vec3.fromValues(2,2,2))
     gl.drawArrays(gl.TRIANGLES, 0, plane_vertices.length/3);
 
-    // Setting the sphere
-    gl.bindVertexArray(sphere_vao);
+    // Drawing sphere
+    gl.bindVertexArray(sphere_vao.VAO);
     setTransformationUniforms(
         vec3.fromValues(1,1,0),
         vec3.fromValues(0,0,0),
         vec3.fromValues(1,1,1))
-    gl.drawArrays(gl.TRIANGLES, 0, sphere_vertices.length/3);
+    gl.drawArrays(gl.TRIANGLES, 0, sphere_vertices.length/3)                   
+    
+
+    // Drawing (colored) sphere representing the point light source
+    gl.bindVertexArray(plightphere_vao.VAO);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER,plightphere_vao.colorBuffer);
+    let newcolors = replace_colors(sphere_colors, plight_color);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(newcolors), gl.STATIC_DRAW);
+    
+    setTransformationUniforms(
+        plight_position,
+        vec3.fromValues(0,0,0),
+        vec3.fromValues(0.2,0.2,0.2))
+    gl.drawArrays(gl.TRIANGLES, 0, sphere_vertices.length/3);;
 
 
 
@@ -249,8 +276,6 @@ function draw(){
 async function start(){
     vertexShaderCode = await (await fetch('GLSL/vertexshader.glsl')).text()
     fragmentShaderCode = await (await fetch('GLSL/fragmentshader.glsl')).text()
-    
-    // console.log(vertexShaderCode, fragmentShaderCode)
     
     // initialze WebGL
     initWebGL();

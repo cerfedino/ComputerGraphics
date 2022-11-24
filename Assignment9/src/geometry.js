@@ -6,6 +6,11 @@ function reverseMesh(vertices) {
     return result.reverse().flat()
 }
 
+function replace_colors(vertex_colors, vec3Color) {
+    return Array(vertex_colors.length/3).fill([vec3Color[0],vec3Color[1],vec3Color[2]]).flat()
+}
+
+
 // definition of a plane
 var plane_vertices = [
     -0.5,  0.0,  -0.5,
