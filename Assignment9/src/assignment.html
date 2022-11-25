@@ -1,0 +1,55 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <script src="gl-matrix-min.js"></script>
+        <script src="geometry.js"></script>
+        <script src="transformations.js"></script>
+        <script src="init.js"></script>
+    </head>
+
+    <body onload="start();">
+        <canvas id="webgl-canvas" width="768" height="768"></canvas>
+        <div  style="float: right">
+            <h4>Camera:</h4>
+            <div class="slidecontainer">
+                Azimuthal angle:</br><input type="range" min="-270" max="90" value="-45" id="camera_azimuthal_angle">
+            </div>
+            <div class="slidecontainer">
+                Polar angle:</br><input type="range" min="1" max="179" value="60" id="camera_polar_angle">
+            </div>
+            <div class="slidecontainer">
+                Distance:</br><input type="range" min="20" max="200" value="50" id="camera_distance">
+            </div>
+            <div class="slidecontainer">
+                Field of view:</br><input type="range" min="10" max="150" value="45" id="camera_fov">
+            </div>
+
+            <h4>Directional light:</h4>
+            <div class="slidecontainer">
+                Azimuthal angle:</br><input type="range" min="-270" max="90" value="-70" id="light_azimuthal_angle">
+            </div>
+            <div class="slidecontainer">
+                Polar angle:</br><input type="range" min="1" max="179" value="60" id="light_polar_angle">
+            </div>
+            <div class="slidecontainer">
+                Color:</br><input type="color" id="dlight_color" value="#FFFFFF">
+            </div>
+
+            <h4>Point light:</h4>
+            <div class="slidecontainer">
+                X Coordinate:</br><input type="range" step="0.05" min="-3" max="3" value="0" id="plight_x">
+            </div>
+            <div class="slidecontainer">
+                Y Coordinate:</br><input type="range" step="0.05" min="-3" max="3" value="1.2" id="plight_y">
+            </div>
+            <div class="slidecontainer">
+                Z coordinate:</br><input type="range" step="0.05" min="-3" max="3" value="-1" id="plight_z">
+            </div>
+            <div class="slidecontainer">
+                Color:</br><input type="color" id="plight_color" value="#00FFFF">
+            </div>
+            
+        </div>
+    </body>
+
+</html>
