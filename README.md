@@ -19,6 +19,15 @@
 <image style="display: inline-block" src="./Assignment8/render/cube.png" width="30%">
 <image src="./Assignment8/render/triangle.png" width="30%">
 
+### Assignment 9 - Transformations and Lighting
+<image src="./Assignment8/render/triangle.png" width="30%">
+
+
+### Assignment 10 - Texturing
+<image src="./Assignment6/render/result.gif" width="60%">
+
+
+
 
 # Rendering
 1. `cd` into the target assignment folder
