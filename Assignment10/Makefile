@@ -5,7 +5,7 @@ FLAGS = -O3 -fopenmp
 FPS = 25
 
 # Recipes for rendering the still frame
-render/result.png: main.out render/
+render/result.png: src/stb_image.h main.out render/
 	./main.out render/result.ppm && convert "render/result.ppm" "render/result.png"
 main.out: src/main.cpp src/renderer.h
 	g++ $(FLAGS) src/main.cpp src/renderer.h -o main.out
@@ -36,3 +36,8 @@ render/animation/: render/
 	mkdir -p render/animation
 render/:
 	mkdir -p render/
+
+
+# Dependencies
+src/stb_image.h:
+	curl -L https://raw.githubusercontent.com/nothings/stb/master/stb_image.h --output src/stb_image.h
