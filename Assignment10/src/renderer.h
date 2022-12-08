@@ -61,7 +61,8 @@ class Object;
  */
 struct Hit{
     bool hit; ///< Boolean indicating whether there was or there was no intersection with an object
-    glm::vec3 normal; ///< Normal vector of the intersected object at the intersection point
+    glm::vec3 normal; ///< *transformed* Normal vector of the intersected object at the intersection point
+    glm::vec3 normal_shading; //< Normal vector of the intersected object at the intersection point
     glm::vec3 intersection; ///< Point of Intersection
     float distance; ///< Distance from the origin of the ray to the intersection point
     Object *object; ///< A pointer to the intersected object
@@ -114,6 +115,7 @@ public:
 
 		Hit globalHit = localHit;
         globalHit.normal = glm::normalize(glm::vec3(normalMatrix * glm::vec4(globalHit.normal, 0.0f)));
+        globalHit.normal_shading = glm::normalize(glm::vec3(normalMatrix * glm::vec4(globalHit.normal_shading, 0.0f)));
         globalHit.intersection = glm::vec3(transformationMatrix * glm::vec4(globalHit.intersection, 1.0f));
 
         globalHit.distance = glm::length(globalHit.intersection - ray.origin);
@@ -192,27 +194,16 @@ public:
 		hit.hit = true;
 		hit.distance = closest_t;
 		hit.intersection = localRay.origin + localRay.direction * hit.distance;
-		hit.normal = glm::normalize(hit.intersection - center);
+		hit.normal_shading = glm::normalize(hit.intersection - center);
+		hit.normal = hit.normal_shading;
 		hit.object = this;
 
 		// Texture mapping
-		hit.uv.x = 0.5 - asin(hit.normal.y) / M_PI;
-		hit.uv.y = 2*(0.5 + atan2(hit.normal.z, hit.normal.x) / (2 * M_PI));
+		hit.uv.y = 0.5 - asin(hit.normal.y) / M_PI;
+		hit.uv.x = 2*(0.5 + atan2(hit.normal.z, hit.normal.x) / (2 * M_PI));
 
         // remap the normals to the normal map
         if(material.hasNormalMap()) {
-
-
-            // // convert intersection point to sphere coordinates
-            // float theta = acos(hit.normal.y);
-            // float phi = atan2(hit.normal.z, hit.normal.x);
-            // float x = sin(theta) * cos(phi);
-            // float y = sin(theta);
-            // float z = cos(theta) * sin(phi);
-
-            // glm::vec3 tangent = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(x, y, z)));
-            // glm::vec3 bitangent = glm::normalize(glm::cross(hit.normal, tangent));
-
 
             glm::vec3 tangent = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), hit.intersection));
             glm::vec3 bitangent = glm::normalize(glm::cross(hit.normal, tangent));
@@ -259,6 +250,7 @@ public:
 			hit.hit = true;
 			hit.intersection = localRay.origin + t * localRay.direction;
 			hit.normal = glm::normalize(normal);
+            hit.normal_shading = hit.normal;
 			hit.distance = glm::distance(localRay.origin, hit.intersection);
 			hit.object = this;
 		}
@@ -356,12 +348,26 @@ public:
         }
         hit.hit = true;
         hit.normal = glm::normalize(hit.intersection);
+        hit.normal_shading = hit.normal;
         hit.object = this;
 
         // Texture mapping
-        hit.uv.x = 0.5 - asin(hit.normal.y) / M_PI;
-        hit.uv.y = 2*(0.5 + atan2(hit.normal.z, hit.normal.x) / (2 * M_PI));
+        hit.uv.y = 0.5 - asin(hit.normal.y) / M_PI;
+        hit.uv.x = 2*(0.5 + atan2(hit.normal.z, hit.normal.x) / (2 * M_PI));
 
+        // remap the normals to the normal map
+        if(material.hasNormalMap()) {
+
+            glm::vec3 tangent = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), hit.intersection));
+            glm::vec3 bitangent = glm::normalize(glm::cross(hit.normal, tangent));
+
+            glm::vec3 normal_map = glm::normalize(material.getNormal(hit.uv));
+
+            glm::mat3 TBN = glm::mat3(tangent, bitangent, hit.normal);
+
+            hit.normal = glm::normalize(TBN * normal_map);
+        }
+        
         return toGlobalHit(hit, ray);
 	}
 };
@@ -447,40 +453,10 @@ bool is_shadowed(glm::vec3 point, glm::vec3 normal, glm::vec3 direction, const f
  @param material A material structure representing the material of the object
  @param maxBounces compute reflection rays for a maximum amount of levels. Limits recursive calls.
 */
-glm::vec3 IlluminationModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 view_direction, Material material, const int maxBounces){
+glm::vec3 IlluminationModel(glm::vec3 point, glm::vec3 normal, glm::vec3 normal_shading, glm::vec2 uv, glm::vec3 view_direction, Material material, const int maxBounces){
 
 	glm::vec3 color(0.0);
-
-
-    // if (material.hasNormalMap()) {
-    //     // compute tangent and bitangent vectors
-    //     glm::vec3 tangent, bitangent;
-
-    //     // // compute tangent vector
-    //     // tangent = glm::normalize(glm::cross(glm::vec3(0, -1, 0), normal));
-    //     // // compute bitangent vector
-    //     // bitangent = glm::normalize(glm::cross(normal, tangent));
-    //     tangent = glm::normalize(glm::cross(normal, view_direction));
-    //     // if (abs(normal.x) > abs(normal.y)) {
-    //     //     tangent = glm::vec3(normal.z, 0, -normal.x) / sqrt(normal.x * normal.x + normal.z * normal.z);
-    //     // } else {
-    //     //     tangent = glm::vec3(0, -normal.z, normal.y) / sqrt(normal.y * normal.y + normal.z * normal.z);
-    //     // }
-    //     bitangent = glm::normalize(glm::cross(normal, tangent));
-
-    //     // compute TBN matrix
-    //     glm::mat3 TBN = glm::mat3(tangent, bitangent, normal);
-
-    //     // get the normal from the normal map
-    //     glm::vec3 normal_map = material.getNormal(uv);
-
-    //     // convert the normal_map from tangent space to local space
-    //     normal = glm::normalize(TBN * normal_map);
-    // }
-
-    // normal = glm::vec3(0.0);
-
-
+    
 
     for(Light* light : lights) {
         glm::vec3 l = glm::normalize(light->position - point); // direction from the point to the light source
@@ -488,7 +464,7 @@ glm::vec3 IlluminationModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm
         // Shadows
         const float distance_from_light = glm::distance(point, light->position);
         // If the shadow ray hits an object, the point is in shadow and we don/t compute ambient/diffuse.
-        if (!is_shadowed(point, normal, l, distance_from_light)) {
+        if ( !is_shadowed(point, normal_shading, l, distance_from_light)) {
             // If there is a texture, takes the diffuse color of the texture instead.
             glm::vec3 diffuse_color = material.getDiffuse(uv);
 
@@ -516,7 +492,7 @@ glm::vec3 IlluminationModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm
             Ray reflection_ray = Ray(point + 0.001f * reflection_direction, reflection_direction);
             Hit closest_hit = closest_intersection(reflection_ray);
             if (closest_hit.hit) {
-                reflection = material.getReflectivity()*IlluminationModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-reflection_direction), closest_hit.object->getMaterial(), maxBounces-1);
+                reflection = material.getReflectivity()*IlluminationModel(closest_hit.intersection, closest_hit.normal, closest_hit.normal_shading, closest_hit.uv, glm::normalize(-reflection_direction), closest_hit.object->getMaterial(), maxBounces-1);
             }
         }
 
@@ -535,7 +511,7 @@ glm::vec3 IlluminationModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm
 
             Hit closest_hit = closest_intersection(refraction_ray);
             if (closest_hit.hit) {
-                refraction = material.getRefractivity()*IlluminationModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-refraction_direction), closest_hit.object->getMaterial(), maxBounces-1);
+                refraction = material.getRefractivity()*IlluminationModel(closest_hit.intersection, closest_hit.normal, closest_hit.normal_shading, closest_hit.uv, glm::normalize(-refraction_direction), closest_hit.object->getMaterial(), maxBounces-1);
                 // Fresnel effect
                 float O1 = cos(glm::angle(normal, view_direction));
                 float O2 = cos(glm::angle(-normal, refraction_direction));
@@ -571,7 +547,7 @@ glm::vec3 trace_ray(Ray ray) {
 	glm::vec3 color(0.0);
 
 	if (closest_hit.hit) {
-        color = IlluminationModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-ray.direction), closest_hit.object->getMaterial(), 5);
+        color = IlluminationModel(closest_hit.intersection, closest_hit.normal, closest_hit.normal_shading, closest_hit.uv, glm::normalize(-ray.direction), closest_hit.object->getMaterial(), 15);
 	}
     // clamp the final color to [0,1]
 	return  glm::clamp(color, glm::vec3(0.0), glm::vec3(1.0));
@@ -582,7 +558,7 @@ glm::vec3 trace_ray(Ray ray) {
  */
 struct Scene sceneDefinition() {
     vector<Light *> lights;
-    glm::vec3 ambient_light(0.02f);
+    glm::vec3 ambient_light(0.01f);
     vector<Object *> objects;
 
     // Materials -------------------------------------------------------------------------------------------------------
@@ -603,7 +579,7 @@ struct Scene sceneDefinition() {
     red.setAmbient(glm::vec3(0.01f, 0.03f, 0.03f));
     red.setDiffuse(glm::vec3(1.0f, 0.3f, 0.3f));
     red.setSpecular(glm::vec3(0.5));
-    red.setRoughness(10.0);
+    red.setRoughness(0.5);
 
     // red.ambient = glm::vec3(0.01f, 0.03f, 0.03f);
     // red.diffuse = glm::vec3(1.0f, 0.3f, 0.3f);
@@ -654,16 +630,35 @@ struct Scene sceneDefinition() {
     // dark_blue.diffuse = glm::vec3(0.0f, 0.0f, 0.5f);
     // dark_blue.specular = glm::vec3(0.0);
 
+    Material stone;
+    stone.setDiffuse("src/Textures/stone_basecolor.jpg");
+    stone.setAmbient("src/Textures/stone_ambientOcclusion.jpg");
+    stone.setRoughness("src/Textures/stone_roughness.jpg");
+    stone.setNormal("src/Textures/stone_normal.jpg");
+
+
+    Material organic;
+    organic.setDiffuse("src/Textures/organic_basecolor.jpg");
+    organic.setAmbient("src/Textures/organic_ambientOcclusion.jpg");
+    organic.setRoughness("src/Textures/organic_roughness.jpg");
+    organic.setNormal("src/Textures/organic_normal.jpg");
+    // organic.setSpecular(glm::vec3(1.0));
+    // organic.setReflectivity(0.0f);
+    
+
+    Material fur;
+    fur.setDiffuse("src/Textures/fur_basecolor.jpg");
+    fur.setAmbient("src/Textures/fur_ambientOcclusion.jpg");
+    fur.setRoughness("src/Textures/fur_roughness.jpg");
+    fur.setNormal("src/Textures/fur_normal.jpg");
+
     // Procedural textures
     Material checkerboard;
-    // checkerboard.setDiffuse(checkerboardTexture);
+    checkerboard.setDiffuse(checkerboardTexture);
     checkerboard.setDiffuse(glm::vec3(1.0f));
-    // checkerboard.setAmbient("src/Textures/fur_ambientOcclusion.jpg");
-    // checkerboard.setRoughness("src/Textur÷es/fur_roughness.jpg");
-    checkerboard.setNormal("src/Textures/fur_normal.jpg");
-    // checkerboard.setSpecular(glm::vec3(1.0));
-    // checkerboard.setShininess(0.0);
-    // checkerboard.setReflectivity(0.4f);
+    checkerboard.setSpecular(glm::vec3(1.0));
+    checkerboard.setRoughness(0.5f);
+    checkerboard.setReflectivity(0.4f);
 
     // checkerboard.texture = &checkerboardTexture;
 	// checkerboard.ambient = glm::vec3(0.0f);
@@ -674,9 +669,9 @@ struct Scene sceneDefinition() {
 
 	Material rainbow;
     rainbow.setDiffuse(rainbowTexture);
-    rainbow.setAmbient(glm::vec3(1.0f));
-    rainbow.setSpecular(glm::vec3(1.0));
-    rainbow.setRoughness(0.1f);
+    rainbow.setAmbient(glm::vec3(0.0f));
+    rainbow.setSpecular(glm::vec3(0.0));
+    rainbow.setRoughness(0.7f);
 
 	// rainbow.texture = &rainbowTexture;
 	// rainbow.ambient = glm::vec3(0.0f);
@@ -685,11 +680,10 @@ struct Scene sceneDefinition() {
 
     Material refractive;
     refractive.setSpecular(glm::vec3(1.0));
-    refractive.setRoughness(10.0);
+    refractive.setRoughness(0.5);
     refractive.setReflectivity(1.0f);
     refractive.setRefractivity(1.0f);
     refractive.setRefractionIndex(2.0f);
-    refractive.setNormal("src/Textures/fur_normal.jpg");
 
     // refractive.specular = glm::vec3(1.0);
     // refractive.shininess = 10.0;
@@ -703,7 +697,7 @@ struct Scene sceneDefinition() {
     Sphere *sp1 = new Sphere(blue,sp1_t);
 
     glm::mat4 sp2_t = genTRMat(glm::vec3(-1.0, -2.5, 6.0),glm::vec3(0.0),glm::vec3(0.5f));
-    Sphere *sp2 = new Sphere(red,sp2_t);
+    Sphere *sp2 = new Sphere(fur,sp2_t);
 
     // glm::mat4 sp3_t = genTRMat(glm::vec3(3.0, -2.0, 6.0),glm::vec3(0.0),glm::vec3(1.0f));
     // Sphere *sp3 = new Sphere(green,sp3_t);
@@ -714,10 +708,10 @@ struct Scene sceneDefinition() {
 
     // textured spheres
 
-    glm::mat4 sp4_t = genTRMat(glm::vec3(-6,4,23),glm::vec3(30.0),glm::vec3(7.0f));
+    glm::mat4 sp4_t = genTRMat(glm::vec3(-6,4,23),glm::vec3(0.0),glm::vec3(7.0f));
     Sphere *sp4 = new Sphere(checkerboard, sp4_t);
     glm::mat4 sp5_t = genTRMat(glm::vec3(-6,0.0,16),glm::vec3(0.0),glm::vec3(3.0f));
-    Sphere *sp5 = new Sphere(rainbow, sp5_t);
+    Sphere *sp5 = new Sphere(fur, sp5_t);
 
     objects.push_back(sp4);
     objects.push_back(sp5);
@@ -732,8 +726,8 @@ struct Scene sceneDefinition() {
 
     // PLANES ----------------------------------------------------------------------------------------------------------
     // y
-    glm::mat4 p1_t = genTRMat(glm::vec3(0.0, -3.0, 0.0),glm::vec3(0.0),glm::vec3(5.0f));
-    Plane *p1 = new Plane(checkerboard,p1_t);
+    glm::mat4 p1_t = genTRMat(glm::vec3(0.0, -3.0, 0.0),glm::vec3(0.0),glm::vec3(1.0f));
+    Plane *p1 = new Plane(stone,p1_t);
     objects.push_back(p1);
 
     glm::mat4 p2_t = genTRMat(glm::vec3(0.0, 27.0, 0.0),glm::vec3(180.0, 0, 0),glm::vec3(1.0f));
@@ -761,7 +755,7 @@ struct Scene sceneDefinition() {
 
     // CONES -----------------------------------------------------------------------------------------------------------
     glm::mat4 cone1_t = genTRMat(glm::vec3(5.0, -3.0, 14.0),glm::vec3(0.0),glm::vec3(3.0f, 12.0f, 3.0f));
-    Cone *cone1 = new Cone(yellow,cone1_t);
+    Cone *cone1 = new Cone(organic,cone1_t);
     objects.push_back(cone1);
 
     glm::mat4 cone2_t = genTRMat(glm::vec3(3.0, -2.0, 9.0),glm::vec3(0.0, 0.0, -110.0),glm::vec3(1.0f, 3.0f, 1.0f));
