@@ -18,6 +18,7 @@
 #include "Image.h"
 #include "Material.h"
 
+
 using namespace std;
 
 /**
@@ -119,6 +120,9 @@ public:
 
         return globalHit;
     }
+
+
+
 };
 
 /**
@@ -195,6 +199,31 @@ public:
 		hit.uv.x = 0.5 - asin(hit.normal.y) / M_PI;
 		hit.uv.y = 2*(0.5 + atan2(hit.normal.z, hit.normal.x) / (2 * M_PI));
 
+        // remap the normals to the normal map
+        if(material.hasNormalMap()) {
+
+
+            // // convert intersection point to sphere coordinates
+            // float theta = acos(hit.normal.y);
+            // float phi = atan2(hit.normal.z, hit.normal.x);
+            // float x = sin(theta) * cos(phi);
+            // float y = sin(theta);
+            // float z = cos(theta) * sin(phi);
+
+            // glm::vec3 tangent = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(x, y, z)));
+            // glm::vec3 bitangent = glm::normalize(glm::cross(hit.normal, tangent));
+
+
+            glm::vec3 tangent = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), hit.intersection));
+            glm::vec3 bitangent = glm::normalize(glm::cross(hit.normal, tangent));
+
+            glm::vec3 normal_map = glm::normalize(material.getNormal(hit.uv));
+
+            glm::mat3 TBN = glm::mat3(tangent, bitangent, hit.normal);
+
+            hit.normal = glm::normalize(TBN * normal_map);
+        }
+
 		return toGlobalHit(hit, ray);
     }
 };
@@ -237,6 +266,18 @@ public:
         // Texture mapping
         hit.uv.x = 0.1*hit.intersection.x;
         hit.uv.y = 0.1*hit.intersection.z;
+
+        // remap the normals to the normal map
+        if(material.hasNormalMap()) {
+            glm::vec3 tangent = glm::vec3(0, 0, 1);
+            glm::vec3 bitangent = glm::vec3(1, 0, 0);
+
+            glm::vec3 normal_map = glm::normalize(material.getNormal(hit.uv));
+
+            glm::mat3 TBN = glm::mat3(tangent, bitangent, normal);
+
+            hit.normal = glm::normalize(TBN * normal_map);
+        }
 
 		return toGlobalHit(hit, ray);
 	}
@@ -406,9 +447,40 @@ bool is_shadowed(glm::vec3 point, glm::vec3 normal, glm::vec3 direction, const f
  @param material A material structure representing the material of the object
  @param maxBounces compute reflection rays for a maximum amount of levels. Limits recursive calls.
 */
-glm::vec3 IlluminationModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 view_direction, const Material &material, const int maxBounces){
+glm::vec3 IlluminationModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm::vec3 view_direction, Material material, const int maxBounces){
 
 	glm::vec3 color(0.0);
+
+
+    // if (material.hasNormalMap()) {
+    //     // compute tangent and bitangent vectors
+    //     glm::vec3 tangent, bitangent;
+
+    //     // // compute tangent vector
+    //     // tangent = glm::normalize(glm::cross(glm::vec3(0, -1, 0), normal));
+    //     // // compute bitangent vector
+    //     // bitangent = glm::normalize(glm::cross(normal, tangent));
+    //     tangent = glm::normalize(glm::cross(normal, view_direction));
+    //     // if (abs(normal.x) > abs(normal.y)) {
+    //     //     tangent = glm::vec3(normal.z, 0, -normal.x) / sqrt(normal.x * normal.x + normal.z * normal.z);
+    //     // } else {
+    //     //     tangent = glm::vec3(0, -normal.z, normal.y) / sqrt(normal.y * normal.y + normal.z * normal.z);
+    //     // }
+    //     bitangent = glm::normalize(glm::cross(normal, tangent));
+
+    //     // compute TBN matrix
+    //     glm::mat3 TBN = glm::mat3(tangent, bitangent, normal);
+
+    //     // get the normal from the normal map
+    //     glm::vec3 normal_map = material.getNormal(uv);
+
+    //     // convert the normal_map from tangent space to local space
+    //     normal = glm::normalize(TBN * normal_map);
+    // }
+
+    // normal = glm::vec3(0.0);
+
+
 
     for(Light* light : lights) {
         glm::vec3 l = glm::normalize(light->position - point); // direction from the point to the light source
@@ -418,18 +490,18 @@ glm::vec3 IlluminationModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm
         // If the shadow ray hits an object, the point is in shadow and we don/t compute ambient/diffuse.
         if (!is_shadowed(point, normal, l, distance_from_light)) {
             // If there is a texture, takes the diffuse color of the texture instead.
-            glm::vec3 diffuse_color = material.texture != NULL ? material.texture(uv) : material.diffuse;
+            glm::vec3 diffuse_color = material.getDiffuse(uv);
 
             const float diffuse = max(0.0f, glm::dot(l, normal));
 
             glm::vec3 h = glm::normalize(l + view_direction); // half vector
-            const float specular = max(0.0f, glm::pow(glm::dot(h,normal), 4*material.shininess));
+            const float specular = max(0.0f, glm::pow(glm::dot(h,normal), 4*material.getShininess(uv)));
 
             // Attenuation
             const float distance = max(0.1f, distance_from_light);
             const float attenuation = 1/ glm::pow(distance, 2);
             //
-            color += attenuation * light->color * (diffuse_color*diffuse + material.specular*specular);
+            color += attenuation * light->color * (diffuse_color*diffuse + material.getSpecular()*specular);
         }
     }
 
@@ -438,32 +510,32 @@ glm::vec3 IlluminationModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm
         
         // Reflection
         glm::vec3 reflection(0.0f);
-        if (material.reflectivity > 0) {
-            color *= 1 - material.reflectivity;
+        if (material.getReflectivity() > 0) {
+            color *= 1 - material.getReflectivity();
             glm::vec3 reflection_direction = glm::reflect(-view_direction, normal);
             Ray reflection_ray = Ray(point + 0.001f * reflection_direction, reflection_direction);
             Hit closest_hit = closest_intersection(reflection_ray);
             if (closest_hit.hit) {
-                reflection = material.reflectivity*IlluminationModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-reflection_direction), closest_hit.object->getMaterial(), maxBounces-1);
+                reflection = material.getReflectivity()*IlluminationModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-reflection_direction), closest_hit.object->getMaterial(), maxBounces-1);
             }
         }
 
         // Refraction
         glm::vec3 refraction(0.0f);
-        if (material.refractivity > 0) {
-            color *= (1 - material.refractivity);
+        if (material.getRefractivity() > 0) {
+            color *= (1 - material.getRefractivity());
             const bool is_entering = glm::dot(normal, -view_direction) < 0.0f;
             /* TODO:    We assume that one of the two materials is air, whether we are entering or exiting.
                         How would we compute a glass sphere submerged in water ? */
-            const float n1 = is_entering ? 1.0f : material.refraction_index;
-            const float n2 = is_entering ? material.refraction_index : 1.0f;
+            const float n1 = is_entering ? 1.0f : material.getRefractionIndex();
+            const float n2 = is_entering ? material.getRefractionIndex() : 1.0f;
             const float eta = n1/n2;
             glm::vec3 refraction_direction = glm::refract(-view_direction, is_entering ? normal : -normal, eta);
             Ray refraction_ray = Ray(point + 0.001f * refraction_direction, refraction_direction);
 
             Hit closest_hit = closest_intersection(refraction_ray);
             if (closest_hit.hit) {
-                refraction = material.refractivity*IlluminationModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-refraction_direction), closest_hit.object->getMaterial(), maxBounces-1);
+                refraction = material.getRefractivity()*IlluminationModel(closest_hit.intersection, closest_hit.normal, closest_hit.uv, glm::normalize(-refraction_direction), closest_hit.object->getMaterial(), maxBounces-1);
                 // Fresnel effect
                 float O1 = cos(glm::angle(normal, view_direction));
                 float O2 = cos(glm::angle(-normal, refraction_direction));
@@ -478,7 +550,7 @@ glm::vec3 IlluminationModel(glm::vec3 point, glm::vec3 normal, glm::vec2 uv, glm
         color += reflection + refraction;
     }   
 
-    color += ambient_light*material.ambient;
+    color += ambient_light*material.getAmbient(uv);
 
     // This is no more the final color since we recur call IlluminationModel for reflection and refraction.
     // Therefore, the color should not be clamped to 0 and 1.
@@ -515,63 +587,115 @@ struct Scene sceneDefinition() {
 
     // Materials -------------------------------------------------------------------------------------------------------
     Material blue;
-    blue.ambient = glm::vec3(0.07f, 0.07f, 0.1f);
-    blue.diffuse = glm::vec3(0.7f, 0.7f, 1.0f);
-    blue.specular = glm::vec3(0.6);
-    blue.shininess = 100.0;
-    blue.reflectivity = 1.0f;
+    blue.setAmbient(glm::vec3(0.07f, 0.07f, 0.1f));
+    blue.setDiffuse(glm::vec3(0.7f, 0.7f, 1.0f));
+    blue.setSpecular(glm::vec3(0.6));
+    blue.setRoughness(0.0);
+    blue.setReflectivity(1.0f);
+
+    // blue.ambient = glm::vec3(0.07f, 0.07f, 0.1f);
+    // blue.diffuse = glm::vec3(0.7f, 0.7f, 1.0f);
+    // blue.specular = glm::vec3(0.6);
+    // blue.shininess = 100.0;
+    // blue.reflectivity = 1.0f;
 
     Material red;
-    red.ambient = glm::vec3(0.01f, 0.03f, 0.03f);
-    red.diffuse = glm::vec3(1.0f, 0.3f, 0.3f);
-    red.specular = glm::vec3(0.5);
-    red.shininess = 10.0;
+    red.setAmbient(glm::vec3(0.01f, 0.03f, 0.03f));
+    red.setDiffuse(glm::vec3(1.0f, 0.3f, 0.3f));
+    red.setSpecular(glm::vec3(0.5));
+    red.setRoughness(10.0);
+
+    // red.ambient = glm::vec3(0.01f, 0.03f, 0.03f);
+    // red.diffuse = glm::vec3(1.0f, 0.3f, 0.3f);
+    // red.specular = glm::vec3(0.5);
+    // red.shininess = 10.0;
 
     Material green;
-    green.ambient = glm::vec3(0.07f, 0.09f, 0.07f);
-    green.diffuse = glm::vec3(0.7f, 1.0f, 0.7f);
-    green.specular = glm::vec3(0.0);
-    green.shininess = 0.0;
+    green.setAmbient(glm::vec3(0.07f, 0.09f, 0.07f));
+    green.setDiffuse(glm::vec3(0.7f, 1.0f, 0.7f));
+    green.setSpecular(glm::vec3(0.0));
+    green.setRoughness(100.0);
+
+    // green.ambient = glm::vec3(0.07f, 0.09f, 0.07f);
+    // green.diffuse = glm::vec3(0.7f, 1.0f, 0.7f);
+    // green.specular = glm::vec3(0.0);
+    // green.shininess = 0.0;
 
     Material yellow;
-    yellow.ambient = glm::vec3(0.07f, 0.07f, 0.07f);
-    yellow.diffuse = glm::vec3(1.0f, 1.0f, 0.0f);
-    yellow.specular = glm::vec3(1.0);
-    yellow.shininess = 100.0;
-    yellow.reflectivity = 0.5f;
+    yellow.setAmbient(glm::vec3(0.07f, 0.07f, 0.07f));
+    yellow.setDiffuse(glm::vec3(1.0f, 1.0f, 0.0f));
+    yellow.setSpecular(glm::vec3(1.0));
+    yellow.setRoughness(0.0);
+    yellow.setReflectivity(0.5f);
+
+    // yellow.ambient = glm::vec3(0.07f, 0.07f, 0.07f);
+    // yellow.diffuse = glm::vec3(1.0f, 1.0f, 0.0f);
+    // yellow.specular = glm::vec3(1.0);
+    // yellow.shininess = 100.0;
+    // yellow.reflectivity = 0.5f;
 
 	Material white;
-	white.ambient = glm::vec3(0.1f, 0.1f, 0.1f);
-	white.diffuse = glm::vec3(0.9f, 0.9f, 0.9f);
-	white.specular = glm::vec3(0.5);
-	white.shininess = 10.0;
+    white.setAmbient(glm::vec3(0.1f, 0.1f, 0.1f));
+    white.setDiffuse(glm::vec3(0.9f, 0.9f, 0.9f));
+    white.setSpecular(glm::vec3(0.5));
+    white.setRoughness(10.0);
+
+	// white.ambient = glm::vec3(0.1f, 0.1f, 0.1f);
+	// white.diffuse = glm::vec3(0.9f, 0.9f, 0.9f);
+	// white.specular = glm::vec3(0.5);
+	// white.shininess = 10.0;
 
     Material dark_blue;
-    dark_blue.ambient = glm::vec3(0.07f, 0.07f, 0.1f);
-    dark_blue.diffuse = glm::vec3(0.0f, 0.0f, 0.5f);
-    dark_blue.specular = glm::vec3(0.0);
+    dark_blue.setAmbient(glm::vec3(0.07f, 0.07f, 0.1f));
+    dark_blue.setDiffuse(glm::vec3(0.0f, 0.0f, 0.5f));
+    dark_blue.setSpecular(glm::vec3(0.0));
+
+    // dark_blue.ambient = glm::vec3(0.07f, 0.07f, 0.1f);
+    // dark_blue.diffuse = glm::vec3(0.0f, 0.0f, 0.5f);
+    // dark_blue.specular = glm::vec3(0.0);
 
     // Procedural textures
     Material checkerboard;
-    checkerboard.texture = &checkerboardTexture;
-	checkerboard.ambient = glm::vec3(0.0f);
-	checkerboard.specular = glm::vec3(1.0);
-	checkerboard.shininess = 100.0;
-    checkerboard.reflectivity = 0.4f;
+    // checkerboard.setDiffuse(checkerboardTexture);
+    checkerboard.setDiffuse(glm::vec3(1.0f));
+    // checkerboard.setAmbient("src/Textures/fur_ambientOcclusion.jpg");
+    // checkerboard.setRoughness("src/Textur÷es/fur_roughness.jpg");
+    checkerboard.setNormal("src/Textures/fur_normal.jpg");
+    // checkerboard.setSpecular(glm::vec3(1.0));
+    // checkerboard.setShininess(0.0);
+    // checkerboard.setReflectivity(0.4f);
+
+    // checkerboard.texture = &checkerboardTexture;
+	// checkerboard.ambient = glm::vec3(0.0f);
+	// checkerboard.specular = glm::vec3(1.0);
+	// checkerboard.shininess = 100.0;
+    // checkerboard.reflectivity = 0.4f;
 
 
 	Material rainbow;
-	rainbow.texture = &rainbowTexture;
-	rainbow.ambient = glm::vec3(0.0f);
-	rainbow.specular = glm::vec3(1.0);
-	rainbow.shininess = 10.0;
+    rainbow.setDiffuse(rainbowTexture);
+    rainbow.setAmbient(glm::vec3(1.0f));
+    rainbow.setSpecular(glm::vec3(1.0));
+    rainbow.setRoughness(0.1f);
+
+	// rainbow.texture = &rainbowTexture;
+	// rainbow.ambient = glm::vec3(0.0f);
+	// rainbow.specular = glm::vec3(1.0);
+	// rainbow.shininess = 10.0;
 
     Material refractive;
-    refractive.specular = glm::vec3(1.0);
-    refractive.shininess = 10.0;
-    refractive.reflectivity = 1.0f;
-    refractive.refractivity = 1.0f;
-    refractive.refraction_index = 2.0f;
+    refractive.setSpecular(glm::vec3(1.0));
+    refractive.setRoughness(10.0);
+    refractive.setReflectivity(1.0f);
+    refractive.setRefractivity(1.0f);
+    refractive.setRefractionIndex(2.0f);
+    refractive.setNormal("src/Textures/fur_normal.jpg");
+
+    // refractive.specular = glm::vec3(1.0);
+    // refractive.shininess = 10.0;
+    // refractive.reflectivity = 1.0f;
+    // refractive.refractivity = 1.0f;
+    // refractive.refraction_index = 2.0f;
 
 
     // SPHERES ---------------------------------------------------------------------------------------------------------
@@ -590,7 +714,7 @@ struct Scene sceneDefinition() {
 
     // textured spheres
 
-    glm::mat4 sp4_t = genTRMat(glm::vec3(-6,4,23),glm::vec3(0.0),glm::vec3(7.0f));
+    glm::mat4 sp4_t = genTRMat(glm::vec3(-6,4,23),glm::vec3(30.0),glm::vec3(7.0f));
     Sphere *sp4 = new Sphere(checkerboard, sp4_t);
     glm::mat4 sp5_t = genTRMat(glm::vec3(-6,0.0,16),glm::vec3(0.0),glm::vec3(3.0f));
     Sphere *sp5 = new Sphere(rainbow, sp5_t);
