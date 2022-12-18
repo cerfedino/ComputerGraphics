@@ -139,7 +139,7 @@ struct Scene sceneDefinition() {
 
     // triangle soup
     TriangleSoup *tsoup = new TriangleSoup();
-    tsoup->loadObj("src/Models/BreakfastRoom/breakfast_room_fixed.obj");
+    tsoup->loadObj("src/Models/BreakfastRoom/breakfast_room_fixed_colors.obj");
     tsoup->setTransformation(genTRMat(glm::vec3(0.0), glm::vec3(0.0, -13, 0.0), glm::vec3(1.0f)));
     objects.push_back(tsoup);
 
