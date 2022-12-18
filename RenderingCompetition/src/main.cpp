@@ -225,7 +225,7 @@ struct Scene sceneDefinition() {
     // lights
     lights.push_back(new Light(glm::vec3(0.0, 5, 0), glm::vec3(0.6)));
     lights.push_back(new Light(glm::vec3(10.0, 7, 7), glm::vec3(3.0, 2.0, 1.0)));
-    lights.push_back(new Light(glm::vec3(0, 3, 8), glm::vec3(0.5)));
+    lights.push_back(new Light(glm::vec3(0, 3, 6), glm::vec3(0.5)));
     // lights.push_back(new Light(glm::vec3(0.0, 26.0, 5.0), glm::vec3(4.0)));
     // lights.push_back(new Light(glm::vec3(1.0, 3.0, 12.0), glm::vec3(2.0)));
     // lights.push_back(new Light(glm::vec3(0.0, 5.0, 2.0), glm::vec3(1.0)));
