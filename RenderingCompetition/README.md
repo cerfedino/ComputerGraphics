@@ -1,9 +1,11 @@
-# Assignment 10 - Texturing
-<image src="./render/result.gif" width="60%">
+# Rendering Competition
+<image src="./render/result.png" width="60%">
 
 ## Authors
 - Alessandro Gobbetti
 - Albert Cerfeda
 
-## Solved exercises
-- Texturing the Raytracer [18 points]
+## Features
+- Triangle meshes
+- Bounding Box Hierarchy Acceleration
+- OBJ file loader

@@ -26,6 +26,9 @@
 ### Assignment 10 - Texturing
 <image src="./Assignment6/render/result.gif" width="60%">
 
+### Rendering Competition
+<image src="./RenderingCompetition/render/result.png" width="60%">
+
 
 
 
