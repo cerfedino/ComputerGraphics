@@ -159,6 +159,16 @@ struct Scene sceneDefinition() {
 
     // // textured spheres
 
+    TriangleSoup *smoothSphere = new TriangleSoup();
+    smoothSphere->loadObj("src/Models/SmoothSphere/smooth_sphere.obj");
+    smoothSphere->setTransformation(genTRMat(glm::vec3(-3,2,9), glm::vec3(0.0), glm::vec3(4.0f)));
+    objects.push_back(smoothSphere);
+
+    TriangleSoup *flatSphere = new TriangleSoup();
+    flatSphere->loadObj("src/Models/FlatSphere/flat_sphere.obj");
+    flatSphere->setTransformation(genTRMat(glm::vec3(3,2,9), glm::vec3(0.0), glm::vec3(4.0f)));
+    objects.push_back(flatSphere);
+
     glm::mat4 sp4_t = genTRMat(glm::vec3(-5, 0, -1.5), glm::vec3(0.0), glm::vec3(1.5f));
     Sphere *sp4 = new Sphere(blue, sp4_t);
     // glm::mat4 sp5_t = genTRMat(glm::vec3(-6, 0.0, 16), glm::vec3(0.0), glm::vec3(3.0f));
