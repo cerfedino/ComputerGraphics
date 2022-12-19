@@ -31,9 +31,6 @@
 <image src="./RenderingCompetition/render/result2.png" width="60%">
 
 
-### Rendering Competition
-<image src="./RenderingCompetition/render/result.png" width="60%">
-
 
 
 
