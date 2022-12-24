@@ -27,6 +27,12 @@
 <image src="./Assignment10/render/result.gif" width="60%">
 
 
+### Rendering Competition
+<image src="./RenderingCompetition/render/result1.gif" width="60%">
+<image src="./RenderingCompetition/render/result2.png" width="60%">
+
+
+
 
 
 # Rendering
