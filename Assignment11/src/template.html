@@ -270,37 +270,77 @@
                 // You need to fill in the gaps in this function
 
                 // initializing forces for every particle with gravity and any external forces
-                for(i=0;i<cloth_size*cloth_size; i++){
-                    //f[i] =
+                for(i=0;i<cloth_size*cloth_size; i++) {
+                    f[i] = vec3.fromValues(0.0, -9.8*mass, 0.0); // TODO: add wind, ...
                 }
+
 
                 // computing the forces exetrted by every spring and adding them to the forces acting on particles
                 for(i=0;i<spring_start.length;i++){
                     let p = spring_start[i]; // index of the particle/vertex which corresponds to one end of the spring
                     let q = spring_end[i]; // index of the particle/vertex which corresponds to one end of the spring
-
+                    
                     // positions of the two ends of the spring
                     let x_p = vec3.fromValues(cloth_vertices[3*p], cloth_vertices[3*p + 1], cloth_vertices[3*p+2]);
                     let x_q = vec3.fromValues(cloth_vertices[3*q], cloth_vertices[3*q + 1], cloth_vertices[3*q+2]);
 
                     // Compute forces exert by the spring and the damping forces
                     // Use the computed forces to update f[p] and f[q], i.e., accumulated forces which act on the particles
+
+
+                    // damping force
+
+
+                    
+                    
+                    let sub_qp = vec3.create();
+                    vec3.sub(sub_qp, x_p, x_q);
+
+                    // console.log(x_p, x_q)
+                    
+                    const norm = vec3.length(sub_qp);
+                    
+                    let force = vec3.create()
+                    vec3.scale(force, sub_qp, k* (norm/spring_rest[i] -1.0)/norm)
+                    // console.log(sub_qp, norm, spring_rest[i])
+
+                    let f_p = vec3.create();
+                    vec3.add(f_p, f[p], force)
+
+                    let f_q = vec3.create();
+                    vec3.add(f_q, f[q], -force)
+
+                    f[p] = f_p;
+                    f[q] = f_q;
+
+
+                    // console.log(f[p], f[q])
+
                 }
 
                 // updateing position an velocities of the particles based on forces and masses
                 for(let i = 0; i < cloth_size * cloth_size; i++){
+                    if(i>=0 && i<=2) {
+                        console.log( `Cloth vertices i:${i}\n`,cloth_vertices[3*i],  cloth_vertices[3*i + 1],  cloth_vertices[3*i + 2])
+                        console.log( `Velocities i:${i}\n`, v[i][0],   v[i][1],   v[i][2])
+                    }
 
                     // Here update the velocity and position of every particle
 
                     // velocity of i-th particle
-                    //v[i][0] =
-                    //v[i][1] =
-                    //v[i][2] =
+                    v[i][0] += deltaT*f[i][0]/mass;
+                    v[i][1] += deltaT*f[i][1]/mass;
+                    v[i][2] += deltaT*f[i][2]/mass;
 
+                    if(i>=0 && i<=2) {
+                        console.log( `i:${i}\n`, deltaT, f[i][0], mass)
+                    }
+
+                    
                     // position of i-th particle
-                    //cloth_vertices[3*i] =
-                    //cloth_vertices[3*i+1] =
-                    //cloth_vertices[3*i+2] =
+                    cloth_vertices[3*i]   +=  deltaT*v[i][0]
+                    cloth_vertices[3*i+1] +=  deltaT*v[i][1]
+                    cloth_vertices[3*i+2] +=  deltaT*v[i][2]
                 }
 
                 // The three lines below will make sure that the buffer on the GPU,
