@@ -198,6 +198,8 @@
 
             var deltaT = 0.001; // time step for simulation
 
+            const wind_force = vec3.fromValues(0.0,0.0,1.0); // wind force acting on the cloth
+
 
             // the function initialized the topology of the mass-spring system
             function initMassSpringSystem(){
@@ -270,8 +272,12 @@
                 // You need to fill in the gaps in this function
 
                 // initializing forces for every particle with gravity and any external forces
+                let wind = vec3.fromValues(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5);
+                vec3.add(wind, wind_force, wind);
+                vec3.normalize(wind, wind);
                 for(i=0;i<cloth_size*cloth_size; i++) {
-                    f[i] = vec3.fromValues(0.0, -9.8*mass, 0.0); // TODO: add wind, ...
+                    f[i] = vec3.fromValues(0.0, -9.8*mass,0.0); // gravity
+                    vec3.add(f[i], f[i], wind); // wind
                 }
 
 
@@ -288,41 +294,50 @@
                     // Use the computed forces to update f[p] and f[q], i.e., accumulated forces which act on the particles
 
 
-                    // damping force
-
-
-                    
-                    
+                    // usefull variables
                     let sub_qp = vec3.create();
-                    vec3.sub(sub_qp, x_p, x_q);
+                    vec3.sub(sub_qp,x_q, x_p);
+                    let len_qp = vec3.distance(x_q,x_p);
+                    let norm_sub_qp = vec3.create();
+                    vec3.normalize(norm_sub_qp,sub_qp);
 
-                    // console.log(x_p, x_q)
+                    // hooke's law
+                    let strain = (len_qp/spring_rest[i])-1;
+                    let hooke_law = vec3.create();
+                    vec3.scale(hooke_law, norm_sub_qp, k*strain);
+
+
+                    // damping force
+                    let rel_velocity = vec3.create();
+                    vec3.sub(rel_velocity,v[q], v[p]);
+                    vec3.scale(rel_velocity, rel_velocity, 1/spring_rest[i]);
+                    let rel_velocity_along_spring = vec3.dot(rel_velocity, norm_sub_qp);
+
+                    let damping_force = vec3.create();
+                    vec3.scale(damping_force, norm_sub_qp, damping * rel_velocity_along_spring);
                     
-                    const norm = vec3.length(sub_qp);
-                    
-                    let force = vec3.create()
-                    vec3.scale(force, sub_qp, k* (norm/spring_rest[i] -1.0)/norm)
-                    // console.log(sub_qp, norm, spring_rest[i])
 
-                    let f_p = vec3.create();
-                    vec3.add(f_p, f[p], force)
+                    // total force
+                    let force = vec3.create();
+                    vec3.add(force, hooke_law, damping_force);
 
-                    let f_q = vec3.create();
-                    vec3.add(f_q, f[q], -force)
-
-                    f[p] = f_p;
-                    f[q] = f_q;
-
-
-                    // console.log(f[p], f[q])
+                    // add force to f[p] and f[q]
+                    vec3.add(f[p], f[p], force);
+                    vec3.sub(f[q], f[q], force);
 
                 }
 
                 // updateing position an velocities of the particles based on forces and masses
                 for(let i = 0; i < cloth_size * cloth_size; i++){
-                    if(i>=0 && i<=2) {
-                        console.log( `Cloth vertices i:${i}\n`,cloth_vertices[3*i],  cloth_vertices[3*i + 1],  cloth_vertices[3*i + 2])
-                        console.log( `Velocities i:${i}\n`, v[i][0],   v[i][1],   v[i][2])
+
+                    let deltaTime = Date.now() - time;
+
+                    if (i == 0 && deltaTime < 5000) {
+                        continue;
+                    }
+
+                    if (i == cloth_size - 1 && deltaTime < 7000) {
+                        continue;
                     }
 
                     // Here update the velocity and position of every particle
@@ -331,10 +346,6 @@
                     v[i][0] += deltaT*f[i][0]/mass;
                     v[i][1] += deltaT*f[i][1]/mass;
                     v[i][2] += deltaT*f[i][2]/mass;
-
-                    if(i>=0 && i<=2) {
-                        console.log( `i:${i}\n`, deltaT, f[i][0], mass)
-                    }
 
                     
                     // position of i-th particle
