@@ -1,0 +1,359 @@
+<html>
+
+    <head>
+        <meta charset="UTF-8">
+        <script src="gl-matrix-min.js"></script>
+        <script src="geometry.js"></script>
+        <script src="tools.js"></script>
+        <script type="text/javascript">
+
+        var VERT_SHADER =
+            `#version 300 es
+            layout(location=0) in vec3 Position;
+            layout(location=1) in vec3 VertexNormal;
+
+            uniform mat4 ModelMatrix;
+            uniform mat4 ViewMatrix;
+            uniform mat4 ProjectionMatrix;
+
+            out vec3 vertexNormal;
+
+            void main(){
+                vertexNormal = vec4(ViewMatrix*ModelMatrix*vec4(VertexNormal,0.0)).xyz;
+                gl_Position = ProjectionMatrix*ViewMatrix*ModelMatrix * vec4(Position,1.0);
+            }`;
+
+        var FRAG_SHADER =
+            `#version 300 es
+            precision highp float;
+
+            uniform vec3 L;  //light direction
+
+            in vec3 vertexNormal;
+            out vec4 color;
+
+            void main(){
+                float NdotL = max(dot(normalize(vertexNormal),normalize(L)), 0.0);
+                float ambient = 0.1;
+                float diffuse = NdotL;
+                float lighting = ambient + (1.0-ambient) * diffuse;
+                color = vec4(vec3(lighting),1.0);
+            }`;
+
+            var gl;
+            var shaderProgram;
+
+            var terrainVertexBuffer;
+            var terrainNormalBuffer;
+
+            var cloth_vao;
+            var clothVertexBuffer;
+            var clothNormalBuffer;
+            var clothTriangleBuffer;
+
+            function initShaders(){
+
+                //shader for rendering image
+                let vertShader = gl.createShader(gl.VERTEX_SHADER);
+                compileShader(vertShader,VERT_SHADER,gl.VERTEX_SHADER, "Vertex");
+
+                let fragShader = gl.createShader(gl.FRAGMENT_SHADER);
+                compileShader(fragShader,FRAG_SHADER,gl.FRAGMENT_SHADER, "Fragment");
+
+                shaderProgram = gl.createProgram();
+                linkProgram(shaderProgram,vertShader,fragShader);
+
+                shaderProgram.modelMatrixUniform = gl.getUniformLocation(shaderProgram, "ModelMatrix");
+                shaderProgram.viewMatrixUniform = gl.getUniformLocation(shaderProgram, "ViewMatrix");
+                shaderProgram.projectionMatrixUniform = gl.getUniformLocation(shaderProgram, "ProjectionMatrix");
+                shaderProgram.lightDirectionUniform = gl.getUniformLocation(shaderProgram, "L");
+            }
+
+            function initBuffers(){
+                // cloth
+                clothVertexBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, clothVertexBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cloth_vertices), gl.DYNAMIC_DRAW);
+                clothNormalBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, clothNormalBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cloth_normals), gl.DYNAMIC_DRAW);
+                clothTriangleBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,clothTriangleBuffer);
+                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(cloth_triangles),gl.STATIC_DRAW);
+
+                cloth_vao = gl.createVertexArray();
+                gl.bindVertexArray(cloth_vao);
+
+                gl.enableVertexAttribArray(0);
+                gl.bindBuffer(gl.ARRAY_BUFFER,clothVertexBuffer);
+                gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(1);
+                gl.bindBuffer(gl.ARRAY_BUFFER,clothNormalBuffer);
+                gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, clothTriangleBuffer);
+
+                // terrain
+                terrainVertexBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, terrainVertexBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(terrain_vertices), gl.STATIC_DRAW);
+                terrainNormalBuffer= gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, terrainNormalBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(terrain_normals), gl.STATIC_DRAW);
+
+                terrain_vao = gl.createVertexArray();
+                gl.bindVertexArray(terrain_vao);
+
+                gl.enableVertexAttribArray(0);
+                gl.bindBuffer(gl.ARRAY_BUFFER,terrainVertexBuffer);
+                gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(1);
+                gl.bindBuffer(gl.ARRAY_BUFFER,terrainNormalBuffer);
+                gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+            }
+
+            function my_drawArray(vao, program, num, modelMatrix){
+                gl.uniformMatrix4fv(program.modelMatrixUniform, false, modelMatrix);
+                gl.bindVertexArray(vao);
+                gl.drawArrays(gl.TRIANGLES, 0, num);
+            }
+            function my_drawElements(vao, program, num, modelMatrix){
+                gl.uniformMatrix4fv(program.modelMatrixUniform, false, modelMatrix);
+                gl.bindVertexArray(vao);
+                gl.drawElements(gl.TRIANGLES,num, gl.UNSIGNED_INT,0);
+            }
+
+            function drawGeometry(program){
+                let modelMatrix = mat4.create();
+                mat4.identity(modelMatrix);
+                //draw terrain (flat plane)
+                mat4.fromTranslation(modelMatrix,vec3.fromValues(0.0,-1.0,0.0));
+                my_drawArray(terrain_vao, program, terrain_vertices.length/3, modelMatrix);
+                //draw cloth
+                mat4.fromTranslation(modelMatrix,vec3.fromValues(0.0,1.0,-1.0));
+                gl.disable(gl.CULL_FACE);
+                my_drawElements(cloth_vao, program, cloth_triangles.length, modelMatrix);
+                gl.enable(gl.CULL_FACE);
+            }
+            function draw(){
+
+                var camera_rotation = document.getElementById("camera_rotation");
+                var camera_y = document.getElementById("camera_y");
+                var camera_distance = document.getElementById("camera_distance");
+                var light_rotation = document.getElementById("light_rotation");
+                var light_height = document.getElementById("light_height");
+
+                gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+                gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                gl.enable(gl.CULL_FACE);
+                gl.enable(gl.DEPTH_TEST);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+                gl.useProgram(shaderProgram);
+
+                // view matrix
+                var viewMatrix = mat4.create();
+                let rotation = camera_rotation.value/100 * Math.PI*2;
+                let radius = camera_distance.value/10;
+                mat4.lookAt(viewMatrix, vec3.fromValues(radius*Math.sin(rotation),5*(camera_y.value)/100,radius*Math.cos(rotation)), vec3.fromValues(0,0.6,0), vec3.fromValues(0,1,0));
+
+                // light direction
+                let lr = light_rotation.value/100 * Math.PI*2;
+                let r = Math.cos(Math.PI*light_height.value/200);
+                let light_direction = vec3.fromValues(r*Math.sin(lr),Math.sin(Math.PI*light_height.value/200),r*Math.cos(lr));
+                let viewMatrix3x3 = mat3.create();
+                mat3.fromMat4(viewMatrix3x3,viewMatrix)
+                vec3.transformMat3(light_direction, light_direction, viewMatrix3x3);
+
+                // projection ViewMatrix
+                var projectionMatrix = mat4.create();
+                mat4.perspective(projectionMatrix, 1.3, 1024/768, 0.1, 100);
+
+                // setting uniforms for all objects
+                gl.uniformMatrix4fv(shaderProgram.viewMatrixUniform, false, viewMatrix);
+                gl.uniformMatrix4fv(shaderProgram.projectionMatrixUniform, false, projectionMatrix);
+                gl.uniform3fv(shaderProgram.lightDirectionUniform, light_direction);
+
+                drawGeometry(shaderProgram);
+            }
+
+            //******************************************************************
+            //******************************************************************
+            // -------------------- Simulation code ----------------------------
+            // -------- (only the part below has to be modified) ---------------
+            //******************************************************************
+            //******************************************************************
+
+            var spring_start = []; // the i-th element contains the index of the vertex which starts the i-th spring
+            var spring_end = []; // the i-th element contains the index of the vertex which ends the i-th spring
+            var spring_rest = []; // the i-th element contains the rest length of the i-th spring
+
+            var time; // variable that counts the time in milliseconds from the initialization of the mass pring system
+            var v = []; // velocities of the cloth vertices
+            var f = []; // forces acting on individual cloth vertices (gravity + springs + any external)
+
+            var mass = 0.1; // mass of every vertex
+            var damping = 1.0; // dampinging coefficient of every spring
+            var k = 30; // stiffness coefficient of every spring
+
+            var deltaT = 0.001; // time step for simulation
+
+
+            // the function initialized the topology of the mass-spring system
+            function initMassSpringSystem(){
+
+                // adding springs
+                for(let i = 0; i < cloth_size-1; i++){
+                    for(let j = 0; j < cloth_size-1; j++){
+                        let top = i*cloth_size+j;
+                        // vertical 1
+                        spring_start.push(top);
+                        spring_end.push(top + cloth_size);
+                        spring_rest.push(1.0/(cloth_size-1));
+                        // horizontal 1
+                        spring_start.push(top);
+                        spring_end.push(top + 1);
+                        spring_rest.push(1.0/(cloth_size-1));
+                        // vertical 2
+                        spring_start.push(top + 1);
+                        spring_end.push(top + 1 + cloth_size);
+                        spring_rest.push(1.0/(cloth_size-1));
+                        // horizontal 1
+                        spring_start.push(top + cloth_size);
+                        spring_end.push(top + 1 + cloth_size);
+                        spring_rest.push(1.0/(cloth_size-1));
+                        // diagonal 1
+                        spring_start.push(top);
+                        spring_end.push(top + 1 + cloth_size);
+                        spring_rest.push(Math.sqrt(2)*1.0/(cloth_size-1));
+                        // diagonal 2
+                        spring_start.push(top + 1);
+                        spring_end.push(top + cloth_size);
+                        spring_rest.push(Math.sqrt(2)*1.0/(cloth_size-1));
+                    }
+                }
+
+                // initializing velocities and forces
+                for(i=0;i<cloth_size*cloth_size; i++){
+                    v.push(vec3.fromValues(0.0,0.0,0.0));
+                    f.push(vec3.fromValues(0.0,0.0,0.0));
+                }
+
+                time = Date.now();
+            }
+
+
+            // updating the cloth normals
+            function updateNormals(){
+
+                // ------------ Assignment ------------
+                // Impement this funciton to update per-vertex normal vectors of the cloth.
+                // More precisly, the function should update cloth_normals array based on cloth_vertices array.
+                // Remember that every three consecutive values stored in cloth_normals/cloth_vertices correspond
+                // to per-vertex normal/position
+
+
+
+
+                // The three lines below will make sure that the buffer on the GPU,
+                // which stores the normal vectors will be updated.
+                gl.bindBuffer(gl.ARRAY_BUFFER, clothNormalBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cloth_normals), gl.DYNAMIC_DRAW);
+                gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            }
+
+
+            // The function implements one step of simulation
+            function updateCloth(){
+
+                // ------------ Assignment ------------
+                // You need to fill in the gaps in this function
+
+                // initializing forces for every particle with gravity and any external forces
+                for(i=0;i<cloth_size*cloth_size; i++){
+                    //f[i] =
+                }
+
+                // computing the forces exetrted by every spring and adding them to the forces acting on particles
+                for(i=0;i<spring_start.length;i++){
+                    let p = spring_start[i]; // index of the particle/vertex which corresponds to one end of the spring
+                    let q = spring_end[i]; // index of the particle/vertex which corresponds to one end of the spring
+
+                    // positions of the two ends of the spring
+                    let x_p = vec3.fromValues(cloth_vertices[3*p], cloth_vertices[3*p + 1], cloth_vertices[3*p+2]);
+                    let x_q = vec3.fromValues(cloth_vertices[3*q], cloth_vertices[3*q + 1], cloth_vertices[3*q+2]);
+
+                    // Compute forces exert by the spring and the damping forces
+                    // Use the computed forces to update f[p] and f[q], i.e., accumulated forces which act on the particles
+                }
+
+                // updateing position an velocities of the particles based on forces and masses
+                for(let i = 0; i < cloth_size * cloth_size; i++){
+
+                    // Here update the velocity and position of every particle
+
+                    // velocity of i-th particle
+                    //v[i][0] =
+                    //v[i][1] =
+                    //v[i][2] =
+
+                    // position of i-th particle
+                    //cloth_vertices[3*i] =
+                    //cloth_vertices[3*i+1] =
+                    //cloth_vertices[3*i+2] =
+                }
+
+                // The three lines below will make sure that the buffer on the GPU,
+                // which stores the positions of particles, will be updated.
+                gl.bindBuffer(gl.ARRAY_BUFFER, clothVertexBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cloth_vertices), gl.DYNAMIC_DRAW);
+                gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            }
+
+            function run(){
+                draw();
+                // To have small step size of or simulation we need to run several of the steps before rendering
+                // The number of the steps depends on the step size and the framerate. Here we assume 60FPS
+                num_substeps = 1.0/60 / deltaT;
+                for(let i = 0; i < num_substeps; i++){
+                    updateCloth();
+                }
+                updateNormals();
+                window.requestAnimationFrame(function() {run();});
+            }
+
+
+            function main(){
+                initWebGL();
+                initShaders();
+                initBuffers();
+                initMassSpringSystem();
+                run();
+            }
+
+        </script>
+    </head>
+
+    <body onload="main();">
+        <canvas id="webgl-canvas" style="border:1px solid #000000;" width="1024" height="768"></canvas>
+
+        <div  style="float: right">
+            <div class="slidecontainer">
+                Camera rotation:</br><input type="range" min="0" max="100" value="10" id="camera_rotation">
+            </div>
+            <div class="slidecontainer">
+                Camera height:</br><input type="range" min="0" max="100" value="20" id="camera_y">
+            </div>
+            <div class="slidecontainer">
+                Camera distance:</br><input type="range" min="10" max="150" value="20" id="camera_distance">
+            </div>
+            <div class="slidecontainer">
+                Light rotation:</br><input type="range" min="0" max="100" value="10" id="light_rotation">
+            </div>
+            <div class="slidecontainer">
+                Light height:</br><input type="range" min="0" max="100" value="30" id="light_height">
+            </div>
+        </div>
+    </body>
+
+</html>
