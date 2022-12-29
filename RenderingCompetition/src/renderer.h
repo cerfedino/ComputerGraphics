@@ -243,8 +243,8 @@ int render(const struct Scene &renderScene, string filename) {
 
     cout << "Running on " << omp_get_max_threads() << " threads\n";
 
-    int width = 1920;   // width of the image
-    int height = 1440;  // height of the image
+    int width  = 4000;   // width of the image
+    int height = 4000;  // height of the image
 
     float fov = 90;  // field of view
 
@@ -292,12 +292,22 @@ int render(const struct Scene &renderScene, string filename) {
                 // Y coordinate of the current pixel
                 const float dy = Y - j * s - 0.5 * s;
 
-                // direction of the ray
-                glm::vec3 direction = glm::normalize(glm::vec3(dx, dy, Z));
-                // create the ray
-                Ray ray(origin, direction);
+                glm::vec3 color(0.0);
+                // anti-aliasing
+                // trace 4 rays per pixel and average the results
+                for (int k = 0; k < 4; k++) {
+                    // rays are offset by 0.25 pixels
+                    float x_offset = 0.25 * s * (k % 2);
+                    float y_offset = 0.25 * s * (k / 2);
+                    // create the ray
+                    Ray ray(origin, glm::normalize(glm::vec3(dx + x_offset, dy - y_offset, Z)));
+                    // trace the ray and add the color to the pixel
+                    color += trace_ray(ray);
+                }
+                color /= 4.0f;
+
                 // trace the ray and set the color of the pixel
-                image.setPixel(i, j, toneMapping(trace_ray(ray)));
+                image.setPixel(i, j, toneMapping(color));
             }
         }
     }
