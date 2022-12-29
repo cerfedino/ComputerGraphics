@@ -15,11 +15,21 @@
             uniform mat4 ModelMatrix;
             uniform mat4 ViewMatrix;
             uniform mat4 ProjectionMatrix;
+            uniform vec3 frontColor;
+            uniform vec3 backColor;
 
             out vec3 vertexNormal;
+            out vec3 vertexColor;
 
             void main(){
                 vertexNormal = vec4(ViewMatrix*ModelMatrix*vec4(VertexNormal,0.0)).xyz;
+
+                vertexColor = frontColor;
+
+                if(vertexNormal.z < 0.0){
+                    vertexColor = backColor;
+                }
+                
                 gl_Position = ProjectionMatrix*ViewMatrix*ModelMatrix * vec4(Position,1.0);
             }`;
 
@@ -30,14 +40,15 @@
             uniform vec3 L;  //light direction
 
             in vec3 vertexNormal;
+            in vec3 vertexColor;
             out vec4 color;
 
             void main(){
                 float NdotL = max(dot(normalize(vertexNormal),normalize(L)), 0.0);
-                float ambient = 0.1;
+                float ambient = 0.3;
                 float diffuse = NdotL;
                 float lighting = ambient + (1.0-ambient) * diffuse;
-                color = vec4(vec3(lighting),1.0);
+                color = vec4(lighting*vertexColor,1.0);
             }`;
 
             var gl;
@@ -67,6 +78,8 @@
                 shaderProgram.viewMatrixUniform = gl.getUniformLocation(shaderProgram, "ViewMatrix");
                 shaderProgram.projectionMatrixUniform = gl.getUniformLocation(shaderProgram, "ProjectionMatrix");
                 shaderProgram.lightDirectionUniform = gl.getUniformLocation(shaderProgram, "L");
+                shaderProgram.frontColorUniform = gl.getUniformLocation(shaderProgram, "frontColor");
+                shaderProgram.backColorUniform = gl.getUniformLocation(shaderProgram, "backColor");
             }
 
             function initBuffers(){
@@ -128,13 +141,21 @@
                 mat4.identity(modelMatrix);
                 //draw terrain (flat plane)
                 mat4.fromTranslation(modelMatrix,vec3.fromValues(0.0,-1.0,0.0));
+                // set color uniforms for terrain
+                gl.uniform3f(shaderProgram.frontColorUniform, 1.0, 1.0, 1.0);
+                gl.uniform3f(shaderProgram.backColorUniform, 1.0, 1.0, 1.0);
                 my_drawArray(terrain_vao, program, terrain_vertices.length/3, modelMatrix);
                 //draw cloth
                 mat4.fromTranslation(modelMatrix,vec3.fromValues(0.0,1.0,-1.0));
                 gl.disable(gl.CULL_FACE);
+                // set color uniforms for cloth
+                gl.uniform3f(shaderProgram.frontColorUniform, 1.0, 0.0, 0.0);
+                gl.uniform3f(shaderProgram.backColorUniform, 1.0, 0.8, 0.0);
                 my_drawElements(cloth_vao, program, cloth_triangles.length, modelMatrix);
                 gl.enable(gl.CULL_FACE);
             }
+
+
             function draw(){
 
                 var camera_rotation = document.getElementById("camera_rotation");
@@ -155,7 +176,7 @@
                 var viewMatrix = mat4.create();
                 let rotation = camera_rotation.value/100 * Math.PI*2;
                 let radius = camera_distance.value/10;
-                mat4.lookAt(viewMatrix, vec3.fromValues(radius*Math.sin(rotation),5*(camera_y.value)/100,radius*Math.cos(rotation)), vec3.fromValues(0,0.6,0), vec3.fromValues(0,1,0));
+                mat4.lookAt(viewMatrix, vec3.fromValues(radius*Math.sin(rotation),5*(camera_y.value)/100,radius*Math.cos(rotation)), lookAtPoint, vec3.fromValues(0,1,0));
 
                 // light direction
                 let lr = light_rotation.value/100 * Math.PI*2;
@@ -183,6 +204,8 @@
             // -------- (only the part below has to be modified) ---------------
             //******************************************************************
             //******************************************************************
+
+            var lookAtPoint; // the point the camera is looking at
 
             var spring_start = []; // the i-th element contains the index of the vertex which starts the i-th spring
             var spring_end = []; // the i-th element contains the index of the vertex which ends the i-th spring
@@ -242,6 +265,10 @@
                 }
 
                 time = Date.now();
+
+                // initializing the point the camera is looking at
+                lookAtPoint = vec3.fromValues(cloth_vertices[0],cloth_vertices[1],cloth_vertices[2])
+
             }
 
 
@@ -249,13 +276,54 @@
             function updateNormals(){
 
                 // ------------ Assignment ------------
-                // Impement this funciton to update per-vertex normal vectors of the cloth.
+                // Impement this function to update per-vertex normal vectors of the cloth.
                 // More precisly, the function should update cloth_normals array based on cloth_vertices array.
                 // Remember that every three consecutive values stored in cloth_normals/cloth_vertices correspond
                 // to per-vertex normal/position
 
+                // reset all normals to zero before accumulating the normals of all triangles
+                for(let i = 0; i < cloth_normals.length; i++) cloth_normals[i] = 0.0;
 
+                // the normal of each vertex is the average of the normals of all triangles that contain the vertex
+                for (let triangle = 0; triangle < cloth_triangles.length / 3; triangle++) {
+                    let i0 = cloth_triangles[triangle * 3];
+                    let i1 = cloth_triangles[triangle * 3 + 1];
+                    let i2 = cloth_triangles[triangle * 3 + 2];
 
+                    let p0 = vec3.fromValues(cloth_vertices[i0 * 3], cloth_vertices[i0 * 3 + 1], cloth_vertices[i0 * 3 + 2]);
+                    let p1 = vec3.fromValues(cloth_vertices[i1 * 3], cloth_vertices[i1 * 3 + 1], cloth_vertices[i1 * 3 + 2]);
+                    let p2 = vec3.fromValues(cloth_vertices[i2 * 3], cloth_vertices[i2 * 3 + 1], cloth_vertices[i2 * 3 + 2]);
+                    
+                    let e01 = vec3.create()
+                    vec3.sub(e01, p0,p1)
+                    let e02 = vec3.create()
+                    vec3.sub(e02, p0,p2)
+
+                    let n = vec3.create()
+                    vec3.cross(n, e01, e02)
+                    vec3.normalize(n,n)
+
+                    cloth_normals[i0 * 3] += n[0]
+                    cloth_normals[i0 * 3 + 1] += n[1]
+                    cloth_normals[i0 * 3 + 2] += n[2]
+
+                    cloth_normals[i1 * 3] += n[0]
+                    cloth_normals[i1 * 3 + 1] += n[1]
+                    cloth_normals[i1 * 3 + 2] += n[2]
+
+                    cloth_normals[i2 * 3] += n[0]
+                    cloth_normals[i2 * 3 + 1] += n[1]
+                    cloth_normals[i2 * 3 + 2] += n[2]
+                }
+
+                // normalize the normals
+                for(let i = 0; i < cloth_normals.length/3; i++) {
+                    let n = vec3.fromValues(cloth_normals[i * 3], cloth_normals[i * 3 + 1], cloth_normals[i * 3 + 2]);
+                    vec3.normalize(n,n);
+                    cloth_normals[i * 3] = n[0];
+                    cloth_normals[i * 3 + 1] = n[1];
+                    cloth_normals[i * 3 + 2] = n[2];
+                }
 
                 // The three lines below will make sure that the buffer on the GPU,
                 // which stores the normal vectors will be updated.
@@ -294,7 +362,7 @@
                     // Use the computed forces to update f[p] and f[q], i.e., accumulated forces which act on the particles
 
 
-                    // usefull variables
+                    // useful variables
                     let sub_qp = vec3.create();
                     vec3.sub(sub_qp,x_q, x_p);
                     let len_qp = vec3.distance(x_q,x_p);
@@ -327,16 +395,20 @@
 
                 }
 
+                let deltaTime = Date.now() - time;
+                const time1 = 6000;
+                const time2 = 9000;
+
+                let cloth_center = vec3.create();
+
                 // updateing position an velocities of the particles based on forces and masses
                 for(let i = 0; i < cloth_size * cloth_size; i++){
 
-                    let deltaTime = Date.now() - time;
-
-                    if (i == 0 && deltaTime < 5000) {
+                    if (i == 0 && deltaTime < time1) {
                         continue;
                     }
 
-                    if (i == cloth_size - 1 && deltaTime < 7000) {
+                    if (i == cloth_size - 1 && deltaTime < time2) {
                         continue;
                     }
 
@@ -347,12 +419,31 @@
                     v[i][1] += deltaT*f[i][1]/mass;
                     v[i][2] += deltaT*f[i][2]/mass;
 
-                    
                     // position of i-th particle
                     cloth_vertices[3*i]   +=  deltaT*v[i][0]
                     cloth_vertices[3*i+1] +=  deltaT*v[i][1]
                     cloth_vertices[3*i+2] +=  deltaT*v[i][2]
+
+                    if (cloth_vertices[3*i+1] < -1.0) {
+                        cloth_vertices[3*i+1] =  -1.0 + 0.01
+                        v[i][1] = 0;
+                        v[i][0] = 0;
+                        v[i][2] = 0;
+                    }
+
+                    // cloth_center
+                    vec3.add(cloth_center, cloth_center, vec3.fromValues(cloth_vertices[3*i], cloth_vertices[3*i+1], cloth_vertices[3*i+2]));
                 }
+
+                vec3.scale(cloth_center, cloth_center, 1/(cloth_size*cloth_size));
+
+                vec3.add(cloth_center, cloth_center, vec3.fromValues(0.0,1.0,-1.0)); // apply ModelMatrix
+
+                // update lookAtPoint
+                let smooth = 0.001;
+                vec3.scale(lookAtPoint, lookAtPoint, 1.0 - smooth);
+                vec3.scale(cloth_center, cloth_center, smooth);
+                vec3.add(lookAtPoint, lookAtPoint, cloth_center);
 
                 // The three lines below will make sure that the buffer on the GPU,
                 // which stores the positions of particles, will be updated.
