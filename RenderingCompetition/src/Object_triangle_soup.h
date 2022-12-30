@@ -89,7 +89,14 @@ class TriangleSoup : public Object {
         ObjLoader loader;
         bool result = loader.load(fname, triangles, materials);
         if (result) {
+            // start time
+            clock_t start = clock();
             buildAABoxTree();
+            // end time
+            clock_t end = clock();
+            // time elapsed
+            double time_elapsed = double(end - start) / CLOCKS_PER_SEC;
+            cout << "buildAABoxTree time: " << time_elapsed << endl;
         }
         return result;
     }
@@ -125,8 +132,7 @@ class TriangleSoup : public Object {
         }
         // expand boxes to avoid degenerate cases in ray intersection
         box.expand();
-
-        if (tricount < 32) {
+        if (tricount < 8) {
             aabox_tree_nodes.push_back(AABoxTreeNode::make_leaf(box, mintri, tricount));
             aabox_tree_build_progress_out(tricount);
             return aabox_tree_nodes.size() - 1;

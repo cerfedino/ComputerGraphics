@@ -12,6 +12,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <random>
 
 #include "glm/glm.hpp"
 #include "glm/gtx/string_cast.hpp"
@@ -267,9 +268,19 @@ int render(const struct Scene &renderScene, string filename) {
     const int tiles_y = (height + tile_size - 1) / tile_size;  // add one tile if height is not a multiple of tile_size
     const int tile_count = tiles_x * tiles_y;
 
+    // anti-aliasing parameters
+    const int samples_per_pixel_x = 2;
+    const int samples_per_pixel_y = samples_per_pixel_x;
+    const float subpixel_size_x = s/samples_per_pixel_x;
+    const float subpixel_size_y = s/samples_per_pixel_y;
+
 // Loop over all tiles and traverse the rays through the scene
 #pragma omp parallel for schedule(dynamic, 1)
     for (int tile = 0; tile < tile_count; tile++) {
+        // random number generator, used for anti-aliasing
+        std::mt19937 gen(42 + tile); // Standard mersenne_twister_engine
+        std::uniform_real_distribution<> jitter(-0.5, 0.5); // Random real number between -0.5 and 0.5
+
         // print thread 1 progress
         if (omp_get_thread_num() == 0) {
             cout << "Progress: " << ceil((float)tile / tile_count * 10000) / 100 << "%\r";
@@ -295,16 +306,18 @@ int render(const struct Scene &renderScene, string filename) {
                 glm::vec3 color(0.0);
                 // anti-aliasing
                 // trace 4 rays per pixel and average the results
-                for (int k = 0; k < 4; k++) {
-                    // rays are offset by 0.25 pixels
-                    float x_offset = 0.25 * s * (k % 2);
-                    float y_offset = 0.25 * s * (k / 2);
-                    // create the ray
-                    Ray ray(origin, glm::normalize(glm::vec3(dx + x_offset, dy - y_offset, Z)));
-                    // trace the ray and add the color to the pixel
-                    color += trace_ray(ray);
+                for (int k = 0; k < samples_per_pixel_x; k++) {
+                    for (int l = 0; l < samples_per_pixel_y; l++) {
+                        // jitter the ray
+                        float x_offset = -0.5*s + (k+0.5+jitter(gen))*subpixel_size_x;
+                        float y_offset = -0.5*s + (l+0.5+jitter(gen))*subpixel_size_y;
+                        // create the ray
+                        Ray ray(origin, glm::normalize(glm::vec3(dx + x_offset, dy + y_offset, Z)));
+                        // trace the ray and add the color to the pixel
+                        color += trace_ray(ray);
+                    }
                 }
-                color /= 4.0f;
+                color /= samples_per_pixel_x * samples_per_pixel_y;
 
                 // trace the ray and set the color of the pixel
                 image.setPixel(i, j, toneMapping(color));
