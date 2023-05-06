@@ -9,3 +9,4 @@
 - Triangle meshes
 - Bounding Box Hierarchy Acceleration
 - OBJ file loader
+- Anti-aliasing
