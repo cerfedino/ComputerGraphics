@@ -26,7 +26,7 @@ The submodules refer to the current raytracer, any updates will be visible there
 <image src="./Assignment8/render/triangle.png" width="30%">
 
 ### Assignment 9 - Transformations and Lighting
-<image src="./Assignment8/render/triangle.png" width="30%">
+<image src="./Assignment9/render/result.gif" width="60%">
 
 
 ### Assignment 10 - Texturing
